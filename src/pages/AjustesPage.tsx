@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -21,6 +21,7 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { productosService } from '@/features/productos/services/productosService'
+import { downloadBackup } from '@/features/backup/backupService'
 import type { Categoria } from '@/types/app.types'
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
@@ -227,11 +228,25 @@ function CategoriasTab() {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AjustesPage() {
+  const [isDownloading, setIsDownloading] = useState(false)
+
+  const handleBackup = async () => {
+    setIsDownloading(true)
+    try {
+      await downloadBackup()
+      toast.success('Copia de seguridad descargada correctamente')
+    } catch {
+      toast.error('Error al generar la copia de seguridad')
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Ajustes"
-        description="Administrá las categorías de productos"
+        description="Administrá las categorías de productos y generá copias de seguridad"
       />
 
       <Card>
@@ -243,6 +258,29 @@ export default function AjustesPage() {
         </CardHeader>
         <CardContent>
           <CategoriasTab />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Copia de seguridad</CardTitle>
+          <CardDescription>
+            Descargá todos los datos del sistema en formato CSV comprimido en un archivo ZIP.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Incluye clientes, productos, categorías, ventas, ítems, usuarios y movimientos de stock.
+            </p>
+            <Button
+              onClick={handleBackup}
+              disabled={isDownloading}
+            >
+              <Download data-icon="inline-start" />
+              {isDownloading ? 'Generando...' : 'Descargar backup'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
