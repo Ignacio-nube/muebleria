@@ -1,10 +1,19 @@
-import React from 'react'
+import { AuthProvider } from './providers/AuthProvider'
+import { QueryProvider } from './providers/QueryProvider'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { Toaster } from '@/components/ui/sonner'
+import { Router } from './Router'
 
 function App() {
   return (
-    <div>
-      <h1>Centro Hogar</h1>
-    </div>
+    <QueryProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Router />
+          <Toaster position="top-right" richColors />
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryProvider>
   )
 }
 
