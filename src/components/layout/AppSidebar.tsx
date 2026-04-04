@@ -9,6 +9,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import {
   LayoutDashboard,
@@ -19,6 +20,8 @@ import {
   UserCog,
   Settings,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -41,30 +44,61 @@ const ROL_LABEL: Record<string, string> = {
   vendedor: 'Vendedor',
 }
 
+function SidebarToggleButton() {
+  const { state, toggleSidebar } = useSidebar()
+  const isCollapsed = state === 'collapsed'
+  return (
+    <button
+      onClick={toggleSidebar}
+      className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors shrink-0"
+      title={isCollapsed ? 'Expandir sidebar' : 'Contraer sidebar'}
+    >
+      {isCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+    </button>
+  )
+}
+
 export function AppSidebar() {
   const { profile, signOut } = useAuth()
   const { canAccess } = usePermissions()
   const location = useLocation()
+  const { state } = useSidebar()
+  const isCollapsed = state === 'collapsed'
 
   const initials = profile
     ? `${profile.nombre[0]}${profile.apellido[0]}`.toUpperCase()
     : 'CH'
 
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b">
-        <div className="flex items-center gap-3 px-2 py-3">
+    <Sidebar collapsible="icon">
+      {/* Header */}
+      <SidebarHeader className="border-b border-sidebar-border">
+        <div className={cn('flex items-center py-3', isCollapsed ? 'justify-center px-0' : 'gap-3 px-2')}>
           <img src="/logo.svg" alt="Centro Hogar" className="size-8 shrink-0" />
-          <div className="flex flex-col leading-tight">
-            <span className="font-semibold text-sm">Centro Hogar</span>
-            <span className="text-xs text-muted-foreground">Panel de gestión</span>
-          </div>
+          {!isCollapsed && (
+            <>
+              <div className="flex flex-col flex-1 min-w-0 leading-tight">
+                <span className="font-semibold text-sm text-brand">Centro Hogar</span>
+                <span className="text-xs text-sidebar-foreground/50">Panel de gestión</span>
+              </div>
+              <SidebarToggleButton />
+            </>
+          )}
         </div>
+        {/* Toggle button row when collapsed — centered below logo */}
+        {isCollapsed && (
+          <div className="flex justify-center pb-2">
+            <SidebarToggleButton />
+          </div>
+        )}
       </SidebarHeader>
 
+      {/* Nav */}
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navegación</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-xs tracking-widest uppercase text-sidebar-foreground/40 px-2 mb-1">
+            Navegación
+          </SidebarGroupLabel>
           <SidebarMenu>
             {NAV_ITEMS.filter((item) => canAccess(item.permission)).map((item) => {
               const isActive = location.pathname.startsWith(item.to)
@@ -72,9 +106,19 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.to}>
                   <SidebarMenuButton
                     isActive={isActive}
+                    tooltip={item.label}
                     render={<NavLink to={item.to} />}
+                    className={cn(
+                      'transition-colors',
+                      !isActive && 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                    )}
                   >
-                    <item.icon className={cn('size-4', isActive && 'text-primary')} />
+                    <item.icon
+                      className={cn(
+                        'size-4',
+                        isActive ? 'text-brand' : 'text-sidebar-foreground/70',
+                      )}
+                    />
                     <span>{item.label}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -82,31 +126,73 @@ export function AppSidebar() {
             })}
           </SidebarMenu>
         </SidebarGroup>
+
+        {/* Nueva venta CTA */}
+        {canAccess('ventas') && (
+          <SidebarGroup className="mt-auto pb-2">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Nueva venta"
+                  render={<NavLink to="/ventas/nueva" />}
+                  className={cn(
+                    'transition-colors',
+                    isCollapsed
+                      ? 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                      : 'bg-brand text-white hover:bg-brand-dark font-semibold',
+                  )}
+                >
+                  <ShoppingCart className="size-4 shrink-0" />
+                  <span>Nueva venta</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t">
-        <div className="flex items-center gap-3 p-2">
-          <Avatar className="size-8">
-            <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col flex-1 min-w-0 leading-tight">
-            <span className="text-sm font-medium truncate">
-              {profile ? `${profile.nombre} ${profile.apellido}` : 'Usuario'}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {profile ? ROL_LABEL[profile.rol] : ''}
-            </span>
+      {/* Footer */}
+      <SidebarFooter className="border-t border-sidebar-border">
+        {isCollapsed ? (
+          /* Collapsed: avatar only, centered */
+          <div className="flex justify-center p-2">
+            <Avatar className="size-8 shrink-0">
+              <AvatarFallback
+                className="text-xs font-semibold"
+                style={{ backgroundColor: 'var(--brand)', color: 'white' }}
+              >
+                {initials}
+              </AvatarFallback>
+            </Avatar>
           </div>
-          <button
-            onClick={() => signOut()}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            title="Cerrar sesión"
-          >
-            <LogOut className="size-4" />
-          </button>
-        </div>
+        ) : (
+          /* Expanded: avatar + name/role + logout */
+          <div className="flex items-center gap-3 p-2">
+            <Avatar className="size-8 shrink-0">
+              <AvatarFallback
+                className="text-xs font-semibold"
+                style={{ backgroundColor: 'var(--brand)', color: 'white' }}
+              >
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col flex-1 min-w-0 leading-tight">
+              <span className="text-sm font-medium truncate text-sidebar-foreground">
+                {profile ? `${profile.nombre} ${profile.apellido}` : 'Usuario'}
+              </span>
+              <span className="text-xs text-sidebar-foreground/50">
+                {profile ? ROL_LABEL[profile.rol] : ''}
+              </span>
+            </div>
+            <button
+              onClick={() => signOut()}
+              className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
+              title="Cerrar sesión"
+            >
+              <LogOut className="size-4" />
+            </button>
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
   )

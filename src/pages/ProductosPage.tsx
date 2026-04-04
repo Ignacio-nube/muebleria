@@ -5,7 +5,6 @@ import { Plus, Pencil, Trash2, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type Column } from '@/components/common/DataTable'
@@ -13,7 +12,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { ProductoDialog } from '@/features/productos/components/ProductoDialog'
 import { productosService } from '@/features/productos/services/productosService'
 import { usePermissions } from '@/hooks/usePermissions'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
 import type { Producto } from '@/types/app.types'
 
 export default function ProductosPage() {
@@ -81,17 +80,19 @@ export default function ProductosPage() {
       header: 'Código',
       className: 'w-28',
       cell: (p) => (
-        <span className="font-mono text-sm text-muted-foreground">{p.codigo}</span>
+        <span className="font-mono text-xs text-muted-foreground">{p.codigo}</span>
       ),
     },
     {
       key: 'nombre',
       header: 'Producto',
       cell: (p) => (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-0.5">
           <span className="font-medium">{p.nombre}</span>
           {p.categoria && (
-            <span className="text-xs text-muted-foreground">{p.categoria.nombre}</span>
+            <span className="inline-block w-fit bg-zinc-100 text-zinc-500 text-xs px-1.5 py-0.5 rounded">
+              {p.categoria.nombre}
+            </span>
           )}
         </div>
       ),
@@ -116,18 +117,28 @@ export default function ProductosPage() {
       key: 'stock',
       header: 'Stock',
       className: 'text-center w-24',
-      cell: (p) => (
-        <Badge
-          variant={p.stock_actual <= p.stock_minimo ? 'destructive' : p.stock_actual <= p.stock_minimo * 1.5 ? 'secondary' : 'outline'}
-        >
-          {p.stock_actual}
-        </Badge>
-      ),
+      cell: (p) => {
+        if (p.stock_actual === 0) {
+          return (
+            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-600 border border-red-200">
+              {p.stock_actual}
+            </span>
+          )
+        }
+        if (p.stock_actual <= p.stock_minimo) {
+          return (
+            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">
+              {p.stock_actual}
+            </span>
+          )
+        }
+        return <span className="text-sm">{p.stock_actual}</span>
+      },
     },
     {
       key: 'activo',
       header: 'Estado',
-      className: 'w-24',
+      className: 'w-28',
       cell: (p) => (
         <button
           className="cursor-pointer"
@@ -137,12 +148,17 @@ export default function ProductosPage() {
             if (canWrite) toggleActivoMutation.mutate({ id: p.id, activo: !p.activo })
           }}
         >
-          <Badge
-            variant={p.activo ? 'default' : 'secondary'}
-            className={canWrite ? 'hover:opacity-80 transition-opacity' : ''}
+          <span
+            className={cn(
+              'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border transition-opacity',
+              canWrite && 'hover:opacity-80',
+              p.activo
+                ? 'bg-green-100 text-green-700 border-green-200'
+                : 'bg-zinc-100 text-zinc-500 border-zinc-200',
+            )}
           >
             {p.activo ? 'Activo' : 'Inactivo'}
-          </Badge>
+          </span>
         </button>
       ),
     },
@@ -152,7 +168,7 @@ export default function ProductosPage() {
           header: '',
           className: 'w-20',
           cell: (p: Producto) => (
-            <div className="flex items-center gap-1 justify-end">
+            <div className="flex items-center gap-1 justify-end opacity-0 group-hover/row:opacity-100 transition-opacity">
               <Button
                 variant="ghost"
                 size="icon"
@@ -204,8 +220,8 @@ export default function ProductosPage() {
           value={categoriaId || 'all'}
           onValueChange={(v) => { setCategoriaId((v as string) === 'all' ? '' : (v as string)); setPage(1) }}
         >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Categoría" />
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todas las categorías" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas las categorías</SelectItem>
@@ -218,11 +234,11 @@ export default function ProductosPage() {
           value={activoFilter}
           onValueChange={(v) => { setActivoFilter(v as string); setPage(1) }}
         >
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Estado" />
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Todos los estados" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="all">Todos los estados</SelectItem>
             <SelectItem value="activo">Activos</SelectItem>
             <SelectItem value="inactivo">Inactivos</SelectItem>
           </SelectContent>
@@ -231,11 +247,11 @@ export default function ProductosPage() {
           value={stockFilter}
           onValueChange={(v) => { setStockFilter(v as string); setPage(1) }}
         >
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Stock" />
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Todos los stocks" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todo el stock</SelectItem>
+            <SelectItem value="all">Todos los stocks</SelectItem>
             <SelectItem value="bajo">Bajo stock</SelectItem>
           </SelectContent>
         </Select>

@@ -1,30 +1,35 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Download } from 'lucide-react'
+import { Plus, Download, Banknote, CreditCard, ArrowLeftRight } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { PDFDownloadLink } from '@react-pdf/renderer'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { TicketPDF } from '@/features/reportes/pdf/TicketPDF'
 import { ventasService } from '@/features/ventas/services/ventasService'
 import { authService } from '@/features/auth/services/authService'
-import { formatCurrency, formatDateTime } from '@/lib/utils'
+import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { Venta, CartItem } from '@/types/app.types'
 
-const ESTADO_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  completada: 'default',
-  pendiente: 'secondary',
-  cancelada: 'destructive',
+const ESTADO_BADGE: Record<string, string> = {
+  completada: 'bg-green-100 text-green-700 border border-green-200',
+  pendiente: 'bg-zinc-100 text-zinc-500 border border-zinc-200',
+  cancelada: 'bg-red-100 text-red-600 border border-red-200',
 }
 
 const METODO_LABEL: Record<string, string> = {
   efectivo: 'Efectivo',
   tarjeta: 'Tarjeta',
   transferencia: 'Transf.',
+}
+
+const METODO_ICON: Record<string, React.ElementType> = {
+  efectivo: Banknote,
+  tarjeta: CreditCard,
+  transferencia: ArrowLeftRight,
 }
 
 function ventaItemsToCartItems(venta: Venta): CartItem[] {
@@ -62,9 +67,6 @@ export default function VentasPage() {
     queryFn: () => authService.listUsers(),
   })
 
-  // For PDF download we need items. We fetch them lazily via getById, but
-  // to keep the list fast we only show a download button for ventas that have items loaded.
-  // We use a separate query per-venta approach via a DownloadCell wrapper.
   const columns: Column<Venta>[] = [
     {
       key: 'numero',
@@ -100,9 +102,15 @@ export default function VentasPage() {
     {
       key: 'metodo',
       header: 'Pago',
-      cell: (v) => (
-        <span className="text-sm">{METODO_LABEL[v.metodo_pago]}</span>
-      ),
+      cell: (v) => {
+        const MetodoIcon = METODO_ICON[v.metodo_pago]
+        return (
+          <div className="flex items-center gap-1.5 text-sm">
+            {MetodoIcon && <MetodoIcon className="size-3.5 text-muted-foreground shrink-0" />}
+            {METODO_LABEL[v.metodo_pago]}
+          </div>
+        )
+      },
     },
     {
       key: 'total',
@@ -114,9 +122,14 @@ export default function VentasPage() {
       key: 'estado',
       header: 'Estado',
       cell: (v) => (
-        <Badge variant={ESTADO_VARIANT[v.estado] ?? 'outline'}>
+        <span
+          className={cn(
+            'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+            ESTADO_BADGE[v.estado] ?? 'bg-zinc-100 text-zinc-500 border border-zinc-200',
+          )}
+        >
           {v.estado.charAt(0).toUpperCase() + v.estado.slice(1)}
-        </Badge>
+        </span>
       ),
     },
     {
@@ -145,11 +158,25 @@ export default function VentasPage() {
       {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
         <Select
+          value={vendedorId || 'all'}
+          onValueChange={(v) => { setVendedorId((v as string) === 'all' ? '' : (v as string)); setPage(1) }}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todos los vendedores" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los vendedores</SelectItem>
+            {(usuarios ?? []).map((u) => (
+              <SelectItem key={u.id} value={u.id}>{u.nombre} {u.apellido}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
           value={estado || 'all'}
           onValueChange={(v) => { setEstado((v as string) === 'all' ? '' : (v as string)); setPage(1) }}
         >
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Estado" />
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Todos los estados" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
@@ -161,28 +188,14 @@ export default function VentasPage() {
           value={metodoPago || 'all'}
           onValueChange={(v) => { setMetodoPago((v as string) === 'all' ? '' : (v as string)); setPage(1) }}
         >
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Método de pago" />
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Todos los métodos" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los métodos</SelectItem>
             <SelectItem value="efectivo">Efectivo</SelectItem>
             <SelectItem value="tarjeta">Tarjeta</SelectItem>
             <SelectItem value="transferencia">Transferencia</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={vendedorId || 'all'}
-          onValueChange={(v) => { setVendedorId((v as string) === 'all' ? '' : (v as string)); setPage(1) }}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Vendedor" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los vendedores</SelectItem>
-            {(usuarios ?? []).map((u) => (
-              <SelectItem key={u.id} value={u.id}>{u.nombre} {u.apellido}</SelectItem>
-            ))}
           </SelectContent>
         </Select>
       </div>
@@ -228,7 +241,7 @@ function TicketDownloadButton({ venta }: { venta: Venta }) {
 
   async function loadAndDownload(e: React.MouseEvent) {
     e.stopPropagation()
-    if (ventaFull) return // already loaded, PDFDownloadLink will handle it
+    if (ventaFull) return
     const full = await ventasService.getById(venta.id)
     setVentaFull(full)
     setReady(true)
@@ -246,7 +259,7 @@ function TicketDownloadButton({ venta }: { venta: Venta }) {
           <Button
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-8 opacity-0 group-hover/row:opacity-100 transition-opacity"
             title="Descargar ticket"
             onClick={(e) => e.stopPropagation()}
           >
@@ -261,7 +274,7 @@ function TicketDownloadButton({ venta }: { venta: Venta }) {
     <Button
       variant="ghost"
       size="icon"
-      className="size-8"
+      className="size-8 opacity-0 group-hover/row:opacity-100 transition-opacity"
       title="Descargar ticket"
       onClick={loadAndDownload}
     >

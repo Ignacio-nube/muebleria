@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CreditCard, Banknote, ArrowLeftRight, Info } from 'lucide-react'
@@ -51,10 +52,32 @@ export function Step3PaymentForm({ state, computed, onSetPayment, onBack, onNext
   const descuento = form.watch('descuento') ?? 0
   const tarjeta = form.watch('tarjeta_tipo')
 
+  const [discountPct, setDiscountPct] = useState<string>(() => {
+    const d = state.descuento ?? 0
+    return d > 0 && computed.subtotal > 0
+      ? ((d / computed.subtotal) * 100).toFixed(1)
+      : ''
+  })
+
   const base = computed.subtotal - descuento
   const interesMonto = base * (interesP / 100)
   const totalFinal = base + interesMonto
   const cuotaMonto = cuotas > 1 ? totalFinal / cuotas : totalFinal
+
+  function handleDiscountAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = parseFloat(e.target.value) || 0
+    form.setValue('descuento', val)
+    if (computed.subtotal > 0) {
+      setDiscountPct(val > 0 ? ((val / computed.subtotal) * 100).toFixed(1) : '')
+    }
+  }
+
+  function handleDiscountPctChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const pct = parseFloat(e.target.value) || 0
+    setDiscountPct(e.target.value)
+    const amount = parseFloat(((pct / 100) * computed.subtotal).toFixed(2))
+    form.setValue('descuento', amount)
+  }
 
   function handleSubmit(values: VentaFormValues) {
     onSetPayment({
@@ -69,15 +92,17 @@ export function Step3PaymentForm({ state, computed, onSetPayment, onBack, onNext
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      <form
-        onSubmit={form.handleSubmit((values: VentaFormValues) => handleSubmit(values))}
-        className="flex flex-col gap-5 flex-1 max-w-md"
-      >
+    <form
+      id="step3-form"
+      onSubmit={form.handleSubmit((values: VentaFormValues) => handleSubmit(values))}
+      className="flex gap-6 w-full items-start"
+    >
+      {/* Left column: form fields (~58%) */}
+      <div className="flex flex-col gap-5 flex-1 min-w-0">
         {/* Método de pago */}
         <div className="flex flex-col gap-2">
-          <Label>Método de pago</Label>
-          <div className="grid grid-cols-3 gap-2">
+          <Label className="text-sm font-medium">Método de pago</Label>
+          <div className="flex gap-2">
             {METODOS.map((m) => (
               <button
                 key={m.value}
@@ -91,13 +116,15 @@ export function Step3PaymentForm({ state, computed, onSetPayment, onBack, onNext
                   }
                 }}
                 className={cn(
-                  'flex flex-col items-center gap-1 p-3 rounded-md border-2 text-sm font-medium transition-all',
+                  'h-16 flex-1 flex flex-col items-center justify-center gap-1.5 rounded-xl border text-sm font-medium transition-all duration-150',
                   metodo === m.value
-                    ? 'border-primary bg-primary/5 text-primary'
-                    : 'border-border hover:border-primary/50'
+                    ? 'border-2 border-brand bg-brand-muted text-brand'
+                    : 'border border-zinc-200 hover:border-zinc-400 text-foreground',
                 )}
               >
-                <m.icon className="size-5" />
+                <m.icon
+                  className={cn('size-5', metodo === m.value ? 'text-brand' : 'text-muted-foreground')}
+                />
                 {m.label}
               </button>
             ))}
@@ -108,8 +135,8 @@ export function Step3PaymentForm({ state, computed, onSetPayment, onBack, onNext
         {metodo === 'tarjeta' && (
           <>
             <div className="flex flex-col gap-2">
-              <Label>Tipo de tarjeta</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <Label className="text-sm font-medium">Tipo de tarjeta</Label>
+              <div className="grid grid-cols-4 gap-2">
                 {TARJETAS.map((t) => (
                   <button
                     key={t.value}
@@ -122,10 +149,10 @@ export function Step3PaymentForm({ state, computed, onSetPayment, onBack, onNext
                       }
                     }}
                     className={cn(
-                      'p-2.5 rounded-md border-2 text-sm font-medium transition-all text-center',
+                      'rounded-lg border p-2 text-sm text-center cursor-pointer transition-all duration-150',
                       tarjeta === t.value
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-border hover:border-primary/50'
+                        ? 'border-brand bg-brand-muted text-brand font-medium'
+                        : 'border-zinc-200 hover:border-zinc-300',
                     )}
                   >
                     {t.label}
@@ -139,7 +166,7 @@ export function Step3PaymentForm({ state, computed, onSetPayment, onBack, onNext
 
             {tarjeta !== 'debito' && (
               <div className="flex flex-col gap-2">
-                <Label>Cuotas</Label>
+                <Label className="text-sm font-medium">Cuotas</Label>
                 <div className="flex flex-wrap gap-2">
                   {CUOTAS_OPTS.map((c) => (
                     <button
@@ -147,10 +174,10 @@ export function Step3PaymentForm({ state, computed, onSetPayment, onBack, onNext
                       type="button"
                       onClick={() => form.setValue('cuotas', c)}
                       className={cn(
-                        'px-3 py-1.5 rounded-md border text-sm font-medium transition-all',
+                        'rounded-full px-4 py-1.5 text-sm transition-all duration-150',
                         cuotas === c
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-border hover:border-primary/50'
+                          ? 'bg-brand text-white font-semibold'
+                          : 'border border-zinc-200 hover:border-brand',
                       )}
                     >
                       {c === 1 ? 'Contado' : `${c}x`}
@@ -163,7 +190,9 @@ export function Step3PaymentForm({ state, computed, onSetPayment, onBack, onNext
             {cuotas > 1 && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="interes">Interés % (del postnet)</Label>
+                  <Label htmlFor="interes" className="text-sm font-medium">
+                    Interés % (del postnet)
+                  </Label>
                   <span title="Ingresá el % que muestra el postnet al procesar la tarjeta">
                     <Info className="size-3.5 text-muted-foreground" />
                   </span>
@@ -185,68 +214,117 @@ export function Step3PaymentForm({ state, computed, onSetPayment, onBack, onNext
           </>
         )}
 
-        {/* Descuento */}
+        {/* Descuento — dual inputs */}
         <div className="flex flex-col gap-2">
-          <Label htmlFor="descuento">Descuento ($)</Label>
-          <Input
-            id="descuento"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="0.00"
-            {...form.register('descuento')}
-          />
+          <Label className="text-sm font-medium">Descuento</Label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                $
+              </span>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                className="pl-7"
+                value={descuento || ''}
+                onChange={handleDiscountAmountChange}
+              />
+            </div>
+            <div className="relative w-28">
+              <Input
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                placeholder="0.0"
+                className="pr-7"
+                value={discountPct}
+                onChange={handleDiscountPctChange}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                %
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Notas */}
         <div className="flex flex-col gap-2">
-          <Label htmlFor="notas">Notas (opcional)</Label>
-          <Input id="notas" placeholder="Observaciones de la venta..." {...form.register('notas')} />
-        </div>
-
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" className="flex-1" onClick={onBack}>
-            Atrás
-          </Button>
-          <Button type="submit" className="flex-1">
-            Revisar venta
-          </Button>
-        </div>
-      </form>
-
-      {/* Resumen en tiempo real */}
-      <div className="w-full lg:w-64 shrink-0">
-        <div className="rounded-lg border p-4 flex flex-col gap-2 sticky top-4">
-          <h4 className="font-semibold text-sm mb-1">Resumen</h4>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span>{formatCurrency(computed.subtotal)}</span>
-          </div>
-          {descuento > 0 && (
-            <div className="flex items-center justify-between text-sm text-destructive">
-              <span>Descuento</span>
-              <span>- {formatCurrency(descuento)}</span>
-            </div>
-          )}
-          {interesP > 0 && (
-            <div className="flex items-center justify-between text-sm text-amber-600">
-              <span>Interés ({interesP}%)</span>
-              <span>+ {formatCurrency(interesMonto)}</span>
-            </div>
-          )}
-          <Separator />
-          <div className="flex items-center justify-between font-bold">
-            <span>Total</span>
-            <span className="text-lg">{formatCurrency(totalFinal)}</span>
-          </div>
-          {cuotas > 1 && (
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>{cuotas} cuotas de</span>
-              <span>{formatCurrency(cuotaMonto)}</span>
-            </div>
-          )}
+          <Label htmlFor="notas" className="text-sm font-medium">
+            Notas <span className="text-muted-foreground font-normal">(opcional)</span>
+          </Label>
+          <Input
+            id="notas"
+            placeholder="Observaciones de la venta..."
+            {...form.register('notas')}
+          />
         </div>
       </div>
-    </div>
+
+      {/* Right column: sticky summary (~42%) */}
+      <div className="w-80 shrink-0 sticky top-6">
+        <div className="bg-zinc-50 rounded-2xl p-5 flex flex-col gap-3">
+          <h4 className="font-semibold text-sm text-zinc-700">Resumen de pago</h4>
+
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="tabular-nums">{formatCurrency(computed.subtotal)}</span>
+            </div>
+
+            {interesP > 0 && (
+              <div className="flex items-center justify-between text-sm text-amber-600">
+                <span>Interés ({interesP}%)</span>
+                <span className="tabular-nums">+ {formatCurrency(interesMonto)}</span>
+              </div>
+            )}
+
+            {descuento > 0 && (
+              <div className="flex items-center justify-between text-sm text-green-600">
+                <span>Descuento</span>
+                <span className="tabular-nums">− {formatCurrency(descuento)}</span>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-zinc-600">Total</span>
+            <span className="text-2xl font-bold text-zinc-900 tabular-nums">
+              {formatCurrency(totalFinal)}
+            </span>
+          </div>
+
+          {cuotas > 1 && (
+            <div className="bg-brand-muted rounded-lg px-3 py-2 text-sm text-brand font-medium">
+              {cuotas} cuotas de {formatCurrency(cuotaMonto)}
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Action buttons */}
+          <div className="flex flex-col gap-2 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-10"
+              onClick={onBack}
+            >
+              Atrás
+            </Button>
+            <Button
+              type="submit"
+              className="w-full h-11 bg-brand hover:bg-brand-dark font-semibold text-white"
+            >
+              Revisar venta
+            </Button>
+          </div>
+        </div>
+      </div>
+    </form>
   )
 }

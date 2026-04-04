@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -67,13 +73,25 @@ export default function ClientesPage() {
         <span className="font-medium">{c.apellido}, {c.nombre}</span>
       ),
     },
-    { key: 'dni', header: 'DNI', cell: (c) => c.dni ?? <span className="text-muted-foreground">—</span> },
-    { key: 'telefono', header: 'Teléfono', cell: (c) => c.telefono ?? <span className="text-muted-foreground">—</span> },
-    { key: 'email', header: 'Email', cell: (c) => c.email ?? <span className="text-muted-foreground">—</span> },
+    {
+      key: 'dni',
+      header: 'DNI',
+      cell: (c) => c.dni ?? <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: 'telefono',
+      header: 'Teléfono',
+      cell: (c) => c.telefono ?? <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      cell: (c) => c.email ?? <span className="text-muted-foreground">—</span>,
+    },
     {
       key: 'activo',
       header: 'Estado',
-      className: 'w-24',
+      className: 'w-28',
       cell: (c) => (
         <button
           className="cursor-pointer"
@@ -83,46 +101,67 @@ export default function ClientesPage() {
             if (canWrite) toggleActivoMutation.mutate({ id: c.id, activo: !c.activo })
           }}
         >
-          <Badge
-            variant={c.activo ? 'default' : 'secondary'}
-            className={canWrite ? 'hover:opacity-80 transition-opacity' : ''}
-          >
-            {c.activo ? 'Activo' : 'Inactivo'}
-          </Badge>
+          {c.activo ? (
+            <Badge className="bg-green-100 text-green-700 border border-green-200 hover:opacity-80 transition-opacity font-medium">
+              Activo
+            </Badge>
+          ) : (
+            <Badge className="bg-zinc-100 text-zinc-500 border border-zinc-200 hover:opacity-80 transition-opacity font-medium">
+              Inactivo
+            </Badge>
+          )}
         </button>
       ),
     },
     {
       key: 'created_at',
       header: 'Alta',
-      cell: (c) => <span className="text-muted-foreground text-sm">{formatDate(c.created_at)}</span>,
+      cell: (c) => (
+        <span className="text-muted-foreground text-sm">{formatDate(c.created_at)}</span>
+      ),
     },
     ...(canWrite
-      ? [{
-          key: 'actions',
-          header: '',
-          className: 'w-20',
-          cell: (c: Cliente) => (
-            <div className="flex items-center gap-1 justify-end">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                onClick={(e) => { e.stopPropagation(); setEditingCliente(c); setDialogOpen(true) }}
-              >
-                <Pencil className="size-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 text-destructive hover:text-destructive"
-                onClick={(e) => { e.stopPropagation(); setDeleteId(c.id) }}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </div>
-          ),
-        }]
+      ? [
+          {
+            key: 'actions',
+            header: '',
+            className: 'w-12',
+            cell: (c: Cliente) => (
+              <div onClick={(e) => e.stopPropagation()}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                      tabIndex={-1}
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setEditingCliente(c)
+                        setDialogOpen(true)
+                      }}
+                    >
+                      <Pencil className="size-3.5 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setDeleteId(c.id)}
+                    >
+                      <Trash2 className="size-3.5 mr-2" />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ),
+          },
+        ]
       : []),
   ]
 
@@ -130,7 +169,21 @@ export default function ClientesPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Clientes"
-        description={`${data?.count ?? 0} clientes registrados`}
+        description={
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className="text-xs font-semibold px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: 'var(--brand-muted)',
+                color: 'var(--brand)',
+                border: '1px solid oklch(0.61 0.146 52 / 0.2)',
+              }}
+            >
+              {data?.count ?? 0}
+            </span>
+            <span className="text-sm text-muted-foreground">clientes registrados</span>
+          </span>
+        }
         action={
           canWrite ? (
             <Button onClick={() => { setEditingCliente(null); setDialogOpen(true) }}>
@@ -141,12 +194,13 @@ export default function ClientesPage() {
         }
       />
 
+      {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-48 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por nombre, apellido o DNI..."
-            className="pl-9"
+            className="pl-9 focus-visible:border-brand"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           />
@@ -155,11 +209,11 @@ export default function ClientesPage() {
           value={activoFilter}
           onValueChange={(v) => { setActivoFilter(v as string); setPage(1) }}
         >
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Estado" />
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Todos los estados" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="all">Todos los estados</SelectItem>
             <SelectItem value="activo">Activos</SelectItem>
             <SelectItem value="inactivo">Inactivos</SelectItem>
           </SelectContent>

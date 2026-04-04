@@ -45,12 +45,18 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="rounded-md border overflow-hidden">
+    <div className="rounded-xl border overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-muted/30">
             {columns.map((col) => (
-              <TableHead key={col.key} className={col.className}>
+              <TableHead
+                key={col.key}
+                className={cn(
+                  'text-xs font-semibold uppercase tracking-wide text-muted-foreground',
+                  col.className,
+                )}
+              >
                 {col.header}
               </TableHead>
             ))}
@@ -70,7 +76,10 @@ export function DataTable<T>({
             data.map((row) => (
               <TableRow
                 key={rowKey(row)}
-                className={cn(onRowClick && 'cursor-pointer hover:bg-muted/50')}
+                className={cn(
+                  'group/row transition-colors',
+                  onRowClick && 'cursor-pointer hover:bg-zinc-50',
+                )}
                 onClick={() => onRowClick?.(row)}
               >
                 {columns.map((col) => (

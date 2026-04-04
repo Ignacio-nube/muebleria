@@ -63,18 +63,18 @@ export function SaleWizard() {
                 <div className="flex flex-col items-center gap-1 flex-1">
                   <div
                     className={cn(
-                      'size-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all',
-                      isCompleted && 'bg-primary border-primary text-primary-foreground',
-                      isCurrent && 'border-primary text-primary bg-primary/10',
-                      !isCompleted && !isCurrent && 'border-muted-foreground/30 text-muted-foreground'
+                      'size-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all duration-300',
+                      isCompleted && 'bg-brand border-brand text-white',
+                      isCurrent && 'border-brand text-brand bg-brand-muted',
+                      !isCompleted && !isCurrent && 'bg-zinc-200 border-zinc-200 text-muted-foreground',
                     )}
                   >
                     {isCompleted ? <Check className="size-4" /> : step.number}
                   </div>
                   <span
                     className={cn(
-                      'text-xs font-medium',
-                      isCurrent ? 'text-primary' : 'text-muted-foreground'
+                      'text-xs font-medium transition-all duration-300',
+                      isCurrent ? 'text-brand' : 'text-muted-foreground',
                     )}
                   >
                     {step.label}
@@ -83,8 +83,8 @@ export function SaleWizard() {
                 {i < STEPS.length - 1 && (
                   <div
                     className={cn(
-                      'h-0.5 flex-1 mb-5 transition-all',
-                      wizard.state.step > step.number ? 'bg-primary' : 'bg-muted'
+                      'h-0.5 flex-1 mb-5 transition-all duration-300',
+                      wizard.state.step > step.number ? 'bg-brand' : 'bg-zinc-200',
                     )}
                   />
                 )}
