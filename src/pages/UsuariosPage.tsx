@@ -11,6 +11,7 @@ import { RoleBadge } from '@/components/common/RoleBadge'
 import { UsuarioDialog } from '@/features/usuarios/components/UsuarioDialog'
 import { authService } from '@/features/auth/services/authService'
 import { formatDate } from '@/lib/utils'
+import { QueryErrorState } from '@/components/ui/query-error-state'
 import type { Profile } from '@/types/app.types'
 
 export default function UsuariosPage() {
@@ -18,7 +19,7 @@ export default function UsuariosPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<Profile | null>(null)
 
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading, isError, refetch } = useQuery({
     queryKey: ['usuarios'],
     queryFn: () => authService.listUsers(),
   })
@@ -58,8 +59,9 @@ export default function UsuariosPage() {
       header: 'Estado',
       cell: (u) => (
         <button
-          className="cursor-pointer"
+          className="cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           title={u.activo ? 'Clic para desactivar' : 'Clic para activar'}
+          disabled={toggleActivoMutation.isPending}
           onClick={(e) => {
             e.stopPropagation()
             toggleActivoMutation.mutate({ id: u.id, activo: !u.activo })
@@ -111,13 +113,17 @@ export default function UsuariosPage() {
         }
       />
 
-      <DataTable
-        columns={columns}
-        data={users ?? []}
-        isLoading={isLoading}
-        rowKey={(u) => u.id}
-        emptyMessage="No hay usuarios registrados."
-      />
+      {isError ? (
+        <QueryErrorState onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={users ?? []}
+          isLoading={isLoading}
+          rowKey={(u) => u.id}
+          emptyMessage="No hay usuarios registrados."
+        />
+      )}
 
       <UsuarioDialog
         open={dialogOpen}

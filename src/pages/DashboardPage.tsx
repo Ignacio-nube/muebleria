@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { TrendingUp, ShoppingCart, Users, AlertTriangle, type LucideIcon } from 'lucide-react'
+import { TrendingUp, ShoppingCart, Users, AlertTriangle, RefreshCw, type LucideIcon } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -50,6 +50,8 @@ function KpiCard({
   description,
   icon: Icon,
   isLoading,
+  isError,
+  onRetry,
   highlighted = false,
 }: {
   title: string
@@ -57,6 +59,8 @@ function KpiCard({
   description?: string
   icon: LucideIcon
   isLoading?: boolean
+  isError?: boolean
+  onRetry?: () => void
   highlighted?: boolean
 }) {
   return (
@@ -94,6 +98,15 @@ function KpiCard({
           <Skeleton
             className={cn('h-9 w-32', highlighted && 'opacity-50')}
           />
+        ) : isError ? (
+          <div className="flex items-center gap-2">
+            <span className={cn('text-xs', highlighted ? 'text-white/70' : 'text-destructive')}>Error</span>
+            {onRetry && (
+              <button onClick={onRetry} className={cn('flex items-center gap-1 text-xs underline', highlighted ? 'text-white/80' : 'text-destructive')}>
+                <RefreshCw className="size-3" /> Reintentar
+              </button>
+            )}
+          </div>
         ) : (
           <>
             <div
@@ -125,22 +138,22 @@ function KpiCard({
 export default function DashboardPage() {
   const { profile } = useAuth()
 
-  const { data: statsHoy, isLoading: loadingStats } = useQuery({
+  const { data: statsHoy, isLoading: loadingStats, isError: errorStats, refetch: refetchStats } = useQuery({
     queryKey: ['stats-hoy'],
     queryFn: () => ventasService.getStatsHoy(),
   })
 
-  const { data: ventasPorDia, isLoading: loadingChart } = useQuery({
+  const { data: ventasPorDia, isLoading: loadingChart, isError: errorChart, refetch: refetchChart } = useQuery({
     queryKey: ['ventas-por-dia'],
     queryFn: () => ventasService.getVentasPorDia(14),
   })
 
-  const { data: bajoStock, isLoading: loadingStock } = useQuery({
+  const { data: bajoStock, isLoading: loadingStock, isError: errorStock, refetch: refetchStock } = useQuery({
     queryKey: ['bajo-stock'],
     queryFn: () => productosService.getBajoStock(),
   })
 
-  const { data: ultimasVentas, isLoading: loadingVentas } = useQuery({
+  const { data: ultimasVentas, isLoading: loadingVentas, isError: errorVentas, refetch: refetchVentas } = useQuery({
     queryKey: ['ultimas-ventas'],
     queryFn: () => ventasService.list({ page: 1, pageSize: 5 }),
   })
@@ -168,6 +181,8 @@ export default function DashboardPage() {
           description="transacciones completadas"
           icon={ShoppingCart}
           isLoading={loadingStats}
+          isError={errorStats}
+          onRetry={() => refetchStats()}
         />
         {/* Recaudado — card destacada */}
         <KpiCard
@@ -176,6 +191,8 @@ export default function DashboardPage() {
           description="monto total"
           icon={TrendingUp}
           isLoading={loadingStats}
+          isError={errorStats}
+          onRetry={() => refetchStats()}
           highlighted
         />
         <KpiCard
@@ -184,6 +201,8 @@ export default function DashboardPage() {
           description="por venta"
           icon={TrendingUp}
           isLoading={loadingStats}
+          isError={errorStats}
+          onRetry={() => refetchStats()}
         />
         <KpiCard
           title="Clientes"
@@ -203,6 +222,14 @@ export default function DashboardPage() {
           <CardContent>
             {loadingChart ? (
               <Skeleton className="h-48 w-full" />
+            ) : errorChart ? (
+              <div className="flex h-48 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+                <AlertTriangle className="size-5 text-destructive" />
+                <span>Error al cargar el gráfico</span>
+                <button onClick={() => refetchChart()} className="flex items-center gap-1 text-xs underline hover:text-foreground">
+                  <RefreshCw className="size-3" /> Reintentar
+                </button>
+              </div>
             ) : (
               <ChartContainer config={chartConfig} className="h-48 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -263,6 +290,14 @@ export default function DashboardPage() {
                   <Skeleton key={i} className="h-8 w-full" />
                 ))}
               </div>
+            ) : errorStock ? (
+              <div className="flex flex-col items-center gap-1.5 py-4 text-sm text-muted-foreground">
+                <AlertTriangle className="size-4 text-destructive" />
+                <span className="text-xs">Error al cargar</span>
+                <button onClick={() => refetchStock()} className="flex items-center gap-1 text-xs underline hover:text-foreground">
+                  <RefreshCw className="size-3" /> Reintentar
+                </button>
+              </div>
             ) : bajoStock?.length === 0 ? (
               <p className="text-sm text-muted-foreground">Todo el stock está OK ✓</p>
             ) : (
@@ -300,6 +335,14 @@ export default function DashboardPage() {
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
+            </div>
+          ) : errorVentas ? (
+            <div className="flex flex-col items-center gap-2 py-8 text-sm text-muted-foreground">
+              <AlertTriangle className="size-5 text-destructive" />
+              <span>Error al cargar las últimas ventas</span>
+              <button onClick={() => refetchVentas()} className="flex items-center gap-1 text-xs underline hover:text-foreground">
+                <RefreshCw className="size-3" /> Reintentar
+              </button>
             </div>
           ) : (
             <div className="flex flex-col gap-1">

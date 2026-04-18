@@ -20,6 +20,7 @@ import { ClienteDialog } from '@/features/clientes/components/ClienteDialog'
 import { clientesService } from '@/features/clientes/services/clientesService'
 import { usePermissions } from '@/hooks/usePermissions'
 import { formatDate } from '@/lib/utils'
+import { QueryErrorState } from '@/components/ui/query-error-state'
 import type { Cliente } from '@/types/app.types'
 
 export default function ClientesPage() {
@@ -40,7 +41,7 @@ export default function ClientesPage() {
   const activoParam =
     activoFilter === 'activo' ? true : activoFilter === 'inactivo' ? false : undefined
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['clientes', search, activoFilter, page],
     queryFn: () => clientesService.list({ search, activo: activoParam, page, pageSize: PAGE_SIZE }),
   })
@@ -220,14 +221,18 @@ export default function ClientesPage() {
         </Select>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={data?.data ?? []}
-        isLoading={isLoading}
-        rowKey={(c) => c.id}
-        emptyMessage="No se encontraron clientes."
-        onRowClick={(c) => navigate(`/clientes/${c.id}`)}
-      />
+      {isError ? (
+        <QueryErrorState onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={data?.data ?? []}
+          isLoading={isLoading}
+          rowKey={(c) => c.id}
+          emptyMessage="No se encontraron clientes."
+          onRowClick={(c) => navigate(`/clientes/${c.id}`)}
+        />
+      )}
 
       {data && data.count > PAGE_SIZE && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">

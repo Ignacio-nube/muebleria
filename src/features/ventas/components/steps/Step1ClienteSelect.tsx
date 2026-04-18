@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Search, UserPlus, ChevronRight, UserX } from 'lucide-react'
+import { Search, UserPlus, ChevronRight, UserX, AlertTriangle, RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -20,7 +20,7 @@ export function Step1ClienteSelect({ onSelect, onSkip }: Step1Props) {
   const [search, setSearch] = useState('')
   const [newClienteOpen, setNewClienteOpen] = useState(false)
 
-  const { data: clientes, isLoading } = useQuery({
+  const { data: clientes, isLoading, isError, refetch } = useQuery({
     queryKey: ['clientes-search', search],
     queryFn: () =>
       search.length >= 2
@@ -66,6 +66,15 @@ export function Step1ClienteSelect({ onSelect, onSkip }: Step1Props) {
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-[60px] w-full rounded-xl" />
             ))}
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center gap-3 py-10 text-center">
+            <AlertTriangle className="size-7 text-destructive opacity-70" />
+            <p className="text-sm text-muted-foreground">No se pudo cargar los clientes.</p>
+            <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="size-3.5 mr-1.5" />
+              Reintentar
+            </Button>
           </div>
         ) : (clientes ?? []).length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-10 text-center text-muted-foreground">

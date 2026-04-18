@@ -11,6 +11,7 @@ import { TicketPDF } from '@/features/reportes/pdf/TicketPDF'
 import { ventasService } from '@/features/ventas/services/ventasService'
 import { authService } from '@/features/auth/services/authService'
 import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
+import { QueryErrorState } from '@/components/ui/query-error-state'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { Venta, CartItem } from '@/types/app.types'
 
@@ -51,7 +52,7 @@ export default function VentasPage() {
   const [vendedorId, setVendedorId] = useState('')
   const PAGE_SIZE = 20
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['ventas', page, estado, metodoPago, vendedorId],
     queryFn: () => ventasService.list({
       page,
@@ -200,14 +201,18 @@ export default function VentasPage() {
         </Select>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={data?.data ?? []}
-        isLoading={isLoading}
-        rowKey={(v) => v.id}
-        emptyMessage="No hay ventas registradas."
-        onRowClick={(v) => navigate(`/ventas/${v.id}`)}
-      />
+      {isError ? (
+        <QueryErrorState onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={data?.data ?? []}
+          isLoading={isLoading}
+          rowKey={(v) => v.id}
+          emptyMessage="No hay ventas registradas."
+          onRowClick={(v) => navigate(`/ventas/${v.id}`)}
+        />
+      )}
 
       {data && data.count > PAGE_SIZE && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">

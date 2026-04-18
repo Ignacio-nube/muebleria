@@ -12,6 +12,7 @@ import { productosService } from '@/features/productos/services/productosService
 import { usePermissions } from '@/hooks/usePermissions'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { useState } from 'react'
+import { QueryErrorState } from '@/components/ui/query-error-state'
 
 export default function ProductoDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -21,7 +22,7 @@ export default function ProductoDetailPage() {
   const canWrite = can('productos.write')
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const { data: producto, isLoading } = useQuery({
+  const { data: producto, isLoading, isError, refetch } = useQuery({
     queryKey: ['producto', id],
     queryFn: () => productosService.getById(id!),
     enabled: !!id,
@@ -49,6 +50,18 @@ export default function ProductoDetailPage() {
           {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24" />)}
         </div>
         <Skeleton className="h-64" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col gap-4 items-center justify-center py-16">
+        <QueryErrorState onRetry={() => refetch()} />
+        <Button variant="outline" onClick={() => navigate('/productos')}>
+          <ArrowLeft data-icon="inline-start" />
+          Volver a Productos
+        </Button>
       </div>
     )
   }
@@ -87,7 +100,8 @@ export default function ProductoDetailPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold tracking-tight">{producto.nombre}</h1>
             <button
-              className="cursor-pointer"
+              className="cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={toggleActivoMutation.isPending}
               title={producto.activo ? 'Clic para desactivar' : 'Clic para activar'}
               onClick={() => {
                 if (canWrite) toggleActivoMutation.mutate({ activo: !producto.activo })

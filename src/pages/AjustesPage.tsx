@@ -22,6 +22,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { productosService } from '@/features/productos/services/productosService'
 import { downloadBackup } from '@/features/backup/backupService'
+import { QueryErrorState } from '@/components/ui/query-error-state'
 import type { Categoria } from '@/types/app.types'
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
@@ -121,7 +122,7 @@ function CategoriasTab() {
   const [editing, setEditing] = useState<Categoria | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  const { data: categorias, isLoading } = useQuery({
+  const { data: categorias, isLoading, isError, refetch } = useQuery({
     queryKey: ['categorias'],
     queryFn: () => productosService.listCategorias(),
   })
@@ -194,13 +195,17 @@ function CategoriasTab() {
         </Button>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={categorias ?? []}
-        isLoading={isLoading}
-        rowKey={(c) => c.id}
-        emptyMessage="No hay categorías registradas."
-      />
+      {isError ? (
+        <QueryErrorState onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={categorias ?? []}
+          isLoading={isLoading}
+          rowKey={(c) => c.id}
+          emptyMessage="No hay categorías registradas."
+        />
+      )}
 
       <CategoriaDialog
         open={dialogOpen}

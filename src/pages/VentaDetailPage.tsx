@@ -12,6 +12,7 @@ import { TicketPDF } from '@/features/reportes/pdf/TicketPDF'
 import { ventasService } from '@/features/ventas/services/ventasService'
 import { usePermissions } from '@/hooks/usePermissions'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
+import { QueryErrorState } from '@/components/ui/query-error-state'
 import type { CartItem, VentaItem } from '@/types/app.types'
 
 const ESTADO_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -70,7 +71,7 @@ export default function VentaDetailPage() {
   const { can } = usePermissions()
   const canWrite = can('ventas.write')
 
-  const { data: venta, isLoading } = useQuery({
+  const { data: venta, isLoading, isError, refetch } = useQuery({
     queryKey: ['venta', id],
     queryFn: () => ventasService.getById(id!),
     enabled: !!id,
@@ -98,6 +99,18 @@ export default function VentaDetailPage() {
           <Skeleton className="h-48" />
         </div>
         <Skeleton className="h-64" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col gap-4 items-center justify-center py-16">
+        <QueryErrorState onRetry={() => refetch()} />
+        <Button variant="outline" onClick={() => navigate('/ventas')}>
+          <ArrowLeft data-icon="inline-start" />
+          Volver a Ventas
+        </Button>
       </div>
     )
   }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, ShoppingCart, AlertTriangle, RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -29,7 +29,7 @@ export function Step2CartBuilder({
 }: Step2Props) {
   const [search, setSearch] = useState('')
 
-  const { data: productos, isLoading } = useQuery({
+  const { data: productos, isLoading, isError, refetch } = useQuery({
     queryKey: ['productos-search', search],
     queryFn: () =>
       productosService.list({ search, soloActivos: true, conStock: true, pageSize: 8 }).then((r) => r.data),
@@ -78,6 +78,15 @@ export function Step2CartBuilder({
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full rounded-lg" />
               ))}
+            </div>
+          ) : isError ? (
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <AlertTriangle className="size-7 text-destructive opacity-70" />
+              <p className="text-sm text-muted-foreground">No se pudo cargar los productos.</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className="size-3.5 mr-1.5" />
+                Reintentar
+              </Button>
             </div>
           ) : (
             (productos ?? []).map((p) => {

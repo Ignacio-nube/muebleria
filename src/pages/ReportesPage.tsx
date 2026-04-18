@@ -19,6 +19,7 @@ import { productosService } from '@/features/productos/services/productosService
 import { authService } from '@/features/auth/services/authService'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { format, startOfMonth } from 'date-fns'
+import { QueryErrorState } from '@/components/ui/query-error-state'
 import type { Venta } from '@/types/app.types'
 
 const METODO_LABEL: Record<string, string> = {
@@ -74,7 +75,7 @@ export default function ReportesPage() {
   const [vendedorId, setVendedorId] = useState('')
   const [estado, setEstado] = useState('')
 
-  const { data: ventasData, isLoading: loadingVentas } = useQuery({
+  const { data: ventasData, isLoading: loadingVentas, isError: errorVentas, refetch: refetchVentas } = useQuery({
     queryKey: ['reportes-ventas', fechaDesde, fechaHasta, metodoPago, vendedorId, estado],
     queryFn: () =>
       ventasService.list({
@@ -289,86 +290,95 @@ export default function ReportesPage() {
       </Card>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard
-          title="Total ventas"
-          value={String(totalVentas)}
-          sub="transacciones en el período"
-          icon={ShoppingCart}
-          isLoading={loadingVentas}
+      {errorVentas ? (
+        <QueryErrorState
+          message="No se pudieron cargar los datos de ventas."
+          onRetry={() => refetchVentas()}
         />
-        <StatCard
-          title="Monto total"
-          value={formatCurrency(montoTotal)}
-          sub="suma de ventas completadas"
-          icon={TrendingUp}
-          isLoading={loadingVentas}
-        />
-        <StatCard
-          title="Ticket promedio"
-          value={formatCurrency(ticketPromedio)}
-          sub="por transacción"
-          icon={TrendingUp}
-          isLoading={loadingVentas}
-        />
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatCard
+              title="Total ventas"
+              value={String(totalVentas)}
+              sub="transacciones en el período"
+              icon={ShoppingCart}
+              isLoading={loadingVentas}
+            />
+            <StatCard
+              title="Monto total"
+              value={formatCurrency(montoTotal)}
+              sub="suma de ventas completadas"
+              icon={TrendingUp}
+              isLoading={loadingVentas}
+            />
+            <StatCard
+              title="Ticket promedio"
+              value={formatCurrency(ticketPromedio)}
+              sub="por transacción"
+              icon={TrendingUp}
+              isLoading={loadingVentas}
+            />
+          </div>
 
-      {/* Breakdown por método */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Desglose por método de pago</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loadingVentas ? (
-            <div className="flex gap-4">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 flex-1" />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {Object.entries(byMetodo).map(([metodo, stats]) => {
-                const Icon = METODO_ICON[metodo] ?? Banknote
-                return (
-                  <div
-                    key={metodo}
-                    className="flex items-center gap-3 rounded-lg border p-4"
-                  >
-                    <div className="size-10 rounded-md bg-muted flex items-center justify-center shrink-0">
-                      <Icon className="size-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-medium capitalize">{METODO_LABEL[metodo]}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {stats.count} ventas · {formatCurrency(stats.total)}
-                      </p>
-                    </div>
-                  </div>
-                )
-              })}
-              {Object.keys(byMetodo).length === 0 && (
-                <p className="text-sm text-muted-foreground col-span-3">
-                  No hay ventas en el período seleccionado.
-                </p>
+          {/* Breakdown por método */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Desglose por método de pago</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingVentas ? (
+                <div className="flex gap-4">
+                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 flex-1" />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {Object.entries(byMetodo).map(([metodo, stats]) => {
+                    const Icon = METODO_ICON[metodo] ?? Banknote
+                    return (
+                      <div
+                        key={metodo}
+                        className="flex items-center gap-3 rounded-lg border p-4"
+                      >
+                        <div className="size-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+                          <Icon className="size-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium capitalize">{METODO_LABEL[metodo]}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {stats.count} ventas · {formatCurrency(stats.total)}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {Object.keys(byMetodo).length === 0 && (
+                    <p className="text-sm text-muted-foreground col-span-3">
+                      No hay ventas en el período seleccionado.
+                    </p>
+                  )}
+                </div>
               )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      {/* Tabla de ventas */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Detalle de ventas</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <DataTable
-            columns={columns}
-            data={ventas}
-            isLoading={loadingVentas}
-            rowKey={(v) => v.id}
-            emptyMessage="No hay ventas en el período seleccionado."
-          />
-        </CardContent>
-      </Card>
+          {/* Tabla de ventas */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Detalle de ventas</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <DataTable
+                columns={columns}
+                data={ventas}
+                isLoading={loadingVentas}
+                rowKey={(v) => v.id}
+                emptyMessage="No hay ventas en el período seleccionado."
+              />
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   )
 }

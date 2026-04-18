@@ -27,6 +27,7 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
+import { QueryErrorState } from '@/components/ui/query-error-state'
 import type { Venta } from '@/types/app.types'
 
 /* ─── Badge helpers ─────────────────────────────────────────────────────── */
@@ -161,13 +162,13 @@ export default function ClienteDetailPage() {
   const canWrite = can('clientes.write')
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const { data: cliente, isLoading } = useQuery({
+  const { data: cliente, isLoading, isError, refetch } = useQuery({
     queryKey: ['cliente', id],
     queryFn: () => clientesService.getById(id!),
     enabled: !!id,
   })
 
-  const { data: historial, isLoading: loadingHistorial } = useQuery({
+  const { data: historial, isLoading: loadingHistorial, isError: historialError, refetch: refetchHistorial } = useQuery({
     queryKey: ['cliente-historial', id],
     queryFn: () => clientesService.getHistorial(id!),
     enabled: !!id,
@@ -260,6 +261,18 @@ export default function ClienteDetailPage() {
     )
   }
 
+  if (isError) {
+    return (
+      <div className="flex flex-col gap-4 items-center justify-center py-16">
+        <QueryErrorState onRetry={() => refetch()} />
+        <Button variant="outline" onClick={() => navigate('/clientes')}>
+          <ArrowLeft data-icon="inline-start" />
+          Volver a Clientes
+        </Button>
+      </div>
+    )
+  }
+
   if (!cliente) {
     return (
       <div className="flex flex-col gap-4 items-center justify-center py-16">
@@ -290,7 +303,8 @@ export default function ClienteDetailPage() {
               {cliente.apellido}, {cliente.nombre}
             </h1>
             <button
-              className="cursor-pointer"
+              className="cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={toggleActivoMutation.isPending}
               title={cliente.activo ? 'Clic para desactivar' : 'Clic para activar'}
               onClick={() => {
                 if (canWrite) toggleActivoMutation.mutate({ activo: !cliente.activo })
@@ -386,6 +400,9 @@ export default function ClienteDetailPage() {
       {/* ── Purchase history ────────────────────────────────────────────── */}
       <div>
         <h2 className="text-lg font-semibold mb-4">Historial de compras</h2>
+        {historialError ? (
+          <QueryErrorState onRetry={() => refetchHistorial()} />
+        ) : (
         <DataTable
           columns={columns}
           data={historial ?? []}
@@ -394,6 +411,7 @@ export default function ClienteDetailPage() {
           emptyMessage="Este cliente no tiene compras registradas."
           onRowClick={(v) => navigate(`/ventas/${v.id}`)}
         />
+        )}
       </div>
 
       <ClienteDialog

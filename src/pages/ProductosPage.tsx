@@ -13,6 +13,7 @@ import { ProductoDialog } from '@/features/productos/components/ProductoDialog'
 import { productosService } from '@/features/productos/services/productosService'
 import { usePermissions } from '@/hooks/usePermissions'
 import { formatCurrency, cn } from '@/lib/utils'
+import { QueryErrorState } from '@/components/ui/query-error-state'
 import type { Producto } from '@/types/app.types'
 
 export default function ProductosPage() {
@@ -35,7 +36,7 @@ export default function ProductosPage() {
   const soloActivoParam =
     activoFilter === 'activo' ? true : activoFilter === 'inactivo' ? false : null
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['productos', search, categoriaId, activoFilter, stockFilter, page],
     queryFn: () =>
       productosService.list({
@@ -257,14 +258,18 @@ export default function ProductosPage() {
         </Select>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={data?.data ?? []}
-        isLoading={isLoading}
-        rowKey={(p) => p.id}
-        emptyMessage="No se encontraron productos."
-        onRowClick={(p) => navigate(`/productos/${p.id}`)}
-      />
+      {isError ? (
+        <QueryErrorState onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={data?.data ?? []}
+          isLoading={isLoading}
+          rowKey={(p) => p.id}
+          emptyMessage="No se encontraron productos."
+          onRowClick={(p) => navigate(`/productos/${p.id}`)}
+        />
+      )}
 
       {data && data.count > PAGE_SIZE && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
