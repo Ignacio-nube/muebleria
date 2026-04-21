@@ -1,10 +1,20 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Download, Banknote, CreditCard, ArrowLeftRight } from 'lucide-react'
+import { Plus, Download, Banknote, CreditCard, ArrowLeftRight, X } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { PDFDownloadLink } from '@react-pdf/renderer'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { TicketPDF } from '@/features/reportes/pdf/TicketPDF'
@@ -42,6 +52,16 @@ function ventaItemsToCartItems(venta: Venta): CartItem[] {
   }))
 }
 
+function buildPaginationPages(current: number, total: number): (number | 'ellipsis')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const pages: (number | 'ellipsis')[] = [1]
+  if (current > 3) pages.push('ellipsis')
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i)
+  if (current < total - 2) pages.push('ellipsis')
+  pages.push(total)
+  return pages
+}
+
 export default function VentasPage() {
   const { can } = usePermissions()
   const navigate = useNavigate()
@@ -50,16 +70,28 @@ export default function VentasPage() {
   const [estado, setEstado] = useState('')
   const [metodoPago, setMetodoPago] = useState('')
   const [vendedorId, setVendedorId] = useState('')
+  const [fechaDesde, setFechaDesde] = useState('')
+  const [fechaHasta, setFechaHasta] = useState('')
   const PAGE_SIZE = 20
 
+  const hasDateFilter = fechaDesde || fechaHasta
+
+  function resetFechas() {
+    setFechaDesde('')
+    setFechaHasta('')
+    setPage(1)
+  }
+
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['ventas', page, estado, metodoPago, vendedorId],
+    queryKey: ['ventas', page, estado, metodoPago, vendedorId, fechaDesde, fechaHasta],
     queryFn: () => ventasService.list({
       page,
       pageSize: PAGE_SIZE,
       estado: estado || undefined,
       metodoPago: metodoPago || undefined,
       vendedorId: vendedorId || undefined,
+      fechaDesde: fechaDesde ? `${fechaDesde}T00:00:00` : undefined,
+      fechaHasta: fechaHasta ? `${fechaHasta}T23:59:59` : undefined,
     }),
   })
 
@@ -199,6 +231,32 @@ export default function VentasPage() {
             <SelectItem value="transferencia">Transferencia</SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Date range */}
+        <div className="flex items-center gap-1.5">
+          <Input
+            type="date"
+            className="w-38"
+            value={fechaDesde}
+            max={fechaHasta || undefined}
+            onChange={(e) => { setFechaDesde(e.target.value); setPage(1) }}
+            title="Desde"
+          />
+          <span className="text-muted-foreground text-sm">—</span>
+          <Input
+            type="date"
+            className="w-38"
+            value={fechaHasta}
+            min={fechaDesde || undefined}
+            onChange={(e) => { setFechaHasta(e.target.value); setPage(1) }}
+            title="Hasta"
+          />
+          {hasDateFilter && (
+            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={resetFechas} title="Limpiar fechas">
+              <X data-icon />
+            </Button>
+          )}
+        </div>
       </div>
 
       {isError ? (
@@ -214,27 +272,51 @@ export default function VentasPage() {
         />
       )}
 
-      {data && data.count > PAGE_SIZE && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>
-            Mostrando {Math.min((page - 1) * PAGE_SIZE + 1, data.count)}–
-            {Math.min(page * PAGE_SIZE, data.count)} de {data.count}
-          </span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>
-              Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page * PAGE_SIZE >= data.count}
-              onClick={() => setPage(page + 1)}
-            >
-              Siguiente
-            </Button>
+      {data && data.count > PAGE_SIZE && (() => {
+        const totalPages = Math.ceil(data.count / PAGE_SIZE)
+        const pages = buildPaginationPages(page, totalPages)
+        return (
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm text-muted-foreground shrink-0">
+              Mostrando {Math.min((page - 1) * PAGE_SIZE + 1, data.count)}–{Math.min(page * PAGE_SIZE, data.count)} de {data.count}
+            </span>
+            <Pagination className="mx-0 w-auto">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => setPage(page - 1)}
+                    aria-disabled={page === 1}
+                    className={cn(page === 1 && 'pointer-events-none opacity-50')}
+                  />
+                </PaginationItem>
+                {pages.map((p, i) =>
+                  p === 'ellipsis' ? (
+                    <PaginationItem key={`ellipsis-${i}`}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  ) : (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        isActive={p === page}
+                        onClick={() => setPage(p)}
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
+                )}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => setPage(page + 1)}
+                    aria-disabled={page === totalPages}
+                    className={cn(page === totalPages && 'pointer-events-none opacity-50')}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

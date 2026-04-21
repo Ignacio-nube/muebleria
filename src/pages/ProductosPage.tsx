@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Plus, Pencil, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type Column } from '@/components/common/DataTable'
-import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { ProductoDialog } from '@/features/productos/components/ProductoDialog'
 import { productosService } from '@/features/productos/services/productosService'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -29,7 +28,6 @@ export default function ProductosPage() {
   const [page, setPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingProducto, setEditingProducto] = useState<Producto | null>(null)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const PAGE_SIZE = 15
 
@@ -53,25 +51,6 @@ export default function ProductosPage() {
   const { data: categorias } = useQuery({
     queryKey: ['categorias'],
     queryFn: () => productosService.listCategorias(),
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => productosService.delete(id),
-    onSuccess: () => {
-      toast.success('Producto eliminado')
-      qc.invalidateQueries({ queryKey: ['productos'] })
-      setDeleteId(null)
-    },
-    onError: (err: Error) => {
-      if (err.message.includes('venta_items') || err.message.includes('foreign key')) {
-        toast.error('No se puede eliminar este producto', {
-          description: 'Tiene ventas registradas. Podés desactivarlo en cambio.',
-        })
-      } else {
-        toast.error('No se pudo eliminar el producto')
-      }
-      setDeleteId(null)
-    },
   })
 
   const toggleActivoMutation = useMutation({
@@ -176,7 +155,7 @@ export default function ProductosPage() {
       ? [{
           key: 'actions',
           header: '',
-          className: 'w-20',
+          className: 'w-12',
           cell: (p: Producto) => (
             <div className="flex items-center gap-1 justify-end opacity-0 group-hover/row:opacity-100 transition-opacity">
               <Button
@@ -186,14 +165,6 @@ export default function ProductosPage() {
                 onClick={(e) => { e.stopPropagation(); setEditingProducto(p); setDialogOpen(true) }}
               >
                 <Pencil className="size-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 text-destructive hover:text-destructive"
-                onClick={(e) => { e.stopPropagation(); setDeleteId(p.id) }}
-              >
-                <Trash2 className="size-3.5" />
               </Button>
             </div>
           ),
@@ -309,15 +280,6 @@ export default function ProductosPage() {
         onSuccess={() => { qc.invalidateQueries({ queryKey: ['productos'] }); setDialogOpen(false) }}
       />
 
-      <ConfirmDialog
-        open={!!deleteId}
-        onOpenChange={(v) => !v && setDeleteId(null)}
-        title="Eliminar producto"
-        description="¿Estás seguro? Esta acción no se puede deshacer."
-        confirmLabel="Eliminar"
-        onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
-        isLoading={deleteMutation.isPending}
-      />
     </div>
   )
 }
