@@ -46,10 +46,17 @@ export default function LoginPage() {
     try {
       await resetPassword(resetEmail)
       setResetSent(true)
-    } catch {
-      toast.error('No se pudo enviar el email', {
-        description: 'Verificá que el email sea correcto e intentá de nuevo.',
-      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message.toLowerCase() : ''
+      if (msg.includes('rate limit') || msg.includes('429')) {
+        toast.error('Demasiados intentos', {
+          description: 'Esperá unos minutos antes de volver a solicitar el link.',
+        })
+      } else {
+        toast.error('No se pudo enviar el email', {
+          description: 'Verificá que el email sea correcto e intentá de nuevo.',
+        })
+      }
     } finally {
       setIsResetting(false)
     }

@@ -62,7 +62,16 @@ export default function ProductosPage() {
       qc.invalidateQueries({ queryKey: ['productos'] })
       setDeleteId(null)
     },
-    onError: () => toast.error('No se pudo eliminar el producto'),
+    onError: (err: Error) => {
+      if (err.message.includes('venta_items') || err.message.includes('foreign key')) {
+        toast.error('No se puede eliminar este producto', {
+          description: 'Tiene ventas registradas. Podés desactivarlo en cambio.',
+        })
+      } else {
+        toast.error('No se pudo eliminar el producto')
+      }
+      setDeleteId(null)
+    },
   })
 
   const toggleActivoMutation = useMutation({
