@@ -29,9 +29,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const initializedRef = useRef(false)
-  const isRecoveryModeRef = useRef(false)
-
-  // Mantener referencia a location para usarla dentro del listener sin recrearlo
   const locationRef = useRef(location)
   useEffect(() => { locationRef.current = location }, [location])
 
@@ -52,14 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const onResetPage = locationRef.current.pathname === '/reset-password'
-
-      if (event === 'PASSWORD_RECOVERY') {
-        // Flujo implicit/legacy: Supabase dispara PASSWORD_RECOVERY
-        isRecoveryModeRef.current = true
-        setUser(null)
-        setProfile(null)
-        navigate('/reset-password', { replace: true })
+      // En /reset-password no tocamos nada — ResetPasswordPage maneja toda la sesión
+      if (locationRef.current.pathname === '/reset-password') {
         if (!initializedRef.current) {
           initializedRef.current = true
           setIsLoading(false)
@@ -67,31 +58,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      if (event === 'SIGNED_IN' && onResetPage) {
-        // Flujo PKCE: el link de recovery manda a /reset-password?code=...
-        // Supabase procesa el code y dispara SIGNED_IN — pero estamos en la página
-        // de reset, así que no autenticar al usuario, solo marcar modo recovery.
-        isRecoveryModeRef.current = true
-        setUser(null)
-        setProfile(null)
-        if (!initializedRef.current) {
-          initializedRef.current = true
-          setIsLoading(false)
-        }
-        return
-      }
-
+      // Ignorar el evento inicial; lo maneja getSession() abajo
       if (!initializedRef.current) return
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-        if (event === 'USER_UPDATED') isRecoveryModeRef.current = false
-
-        if (session?.user && !isRecoveryModeRef.current) {
+        if (session?.user) {
           setUser({ id: session.user.id, email: session.user.email ?? '' })
           await loadProfile(session.user.id)
         }
       } else if (event === 'SIGNED_OUT') {
-        isRecoveryModeRef.current = false
         setUser(null)
         setProfile(null)
       }
@@ -99,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const onResetPage = locationRef.current.pathname === '/reset-password'
-      if (session?.user && !isRecoveryModeRef.current && !onResetPage) {
+      if (session?.user && !onResetPage) {
         setUser({ id: session.user.id, email: session.user.email ?? '' })
         await loadProfile(session.user.id)
       }
@@ -112,9 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-    return () => {
-      subscription.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   }, [loadProfile, navigate])
 
   const signIn = useCallback(async (email: string, password: string) => {
