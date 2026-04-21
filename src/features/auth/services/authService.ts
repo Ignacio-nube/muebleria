@@ -35,16 +35,18 @@ export const authService = {
     password: string,
     profileData: { nombre: string; apellido: string; rol: Profile['rol'] }
   ) {
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    // Use server-side RPC to create user with email already confirmed
+    // (avoids email confirmation flow for internal admin-created accounts)
+    const { data, error } = await supabase.rpc('admin_create_user', {
+      p_email: email,
+      p_password: password,
+      p_nombre: profileData.nombre,
+      p_apellido: profileData.apellido,
+      p_rol: profileData.rol,
+    })
     if (error) throw new Error(error.message)
-    if (!data?.user) throw new Error('No se pudo crear el usuario')
-
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert([{ id: data.user.id, ...profileData }])
-
-    if (profileError) throw new Error(profileError.message)
-    return data.user
+    if (!data) throw new Error('No se pudo crear el usuario')
+    return data as string
   },
 
   async updateProfile(
