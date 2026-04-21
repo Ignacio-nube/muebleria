@@ -21,15 +21,12 @@ export default function ResetPasswordPage() {
     // y dispara onAuthStateChange. PASSWORD_RECOVERY o SIGNED_IN indican sesión activa.
     // Suscribirse ANTES de cualquier otra cosa para no perder el evento.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      console.log('[ResetPasswordPage] auth event:', event)
       if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setIsReady(true)
       }
     })
 
-    // También verificar si la sesión ya fue procesada antes de montar
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[ResetPasswordPage] getSession:', session?.user?.email ?? 'null')
       if (session) {
         setIsReady(true)
       } else {
@@ -62,10 +59,14 @@ export default function ResetPasswordPage() {
       })
       navigate('/login', { replace: true })
     } catch (err) {
-      console.error('[ResetPasswordPage] updatePassword error:', err)
-      toast.error('No se pudo actualizar la contraseña', {
-        description: 'El link puede haber expirado. Solicitá uno nuevo.',
-      })
+      const msg = err instanceof Error ? err.message : ''
+      if (msg.toLowerCase().includes('different from the old')) {
+        toast.error('La nueva contraseña debe ser diferente a la actual')
+      } else {
+        toast.error('No se pudo actualizar la contraseña', {
+          description: 'El link puede haber expirado. Solicitá uno nuevo.',
+        })
+      }
     } finally {
       setIsLoading(false)
     }
