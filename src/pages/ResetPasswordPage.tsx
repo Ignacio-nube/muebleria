@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { authService } from '@/features/auth/services/authService'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,36 +11,49 @@ import { toast } from 'sonner'
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const location = useLocation()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  // "ready" = hay sesión temporal activa de recovery (sea PKCE o implicit)
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    // Caso 1: PKCE — llegamos con ?code= en la URL.
-    // Supabase ya procesó el code y disparó SIGNED_IN en AuthProvider.
-    // La sesión temporal ya está activa, así que podemos mostrar el formulario.
+    // Caso PKCE: llegamos con ?code= en la URL
     const hasCode = searchParams.has('code')
-    if (hasCode) {
-      setIsReady(true)
-      return
+    // Caso implicit: llegamos con #access_token=...&type=recovery en el hash
+    const hasRecoveryHash = location.hash.includes('type=recovery')
+
+    if (hasCode || hasRecoveryHash) {
+      // Supabase procesa el token automáticamente, solo esperar la sesión
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          setIsReady(true)
+        }
+      })
+      // También escuchar por si la sesión llega un poco después
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+          setIsReady(true)
+        }
+      })
+      return () => subscription.unsubscribe()
     }
 
-    // Caso 2: implicit/legacy — llegamos sin code, el evento PASSWORD_RECOVERY
-    // ya fue interceptado por AuthProvider. Verificar que haya sesión activa.
+    // Sin token en URL: puede que AuthProvider ya manejó el evento y estamos acá por navigate()
+    // Verificar sesión activa directamente
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setIsReady(true)
+      if (session) {
+        setIsReady(true)
+      }
     })
 
-    // También escuchar por si el evento llega después de montar
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setIsReady(true)
       }
     })
     return () => subscription.unsubscribe()
-  }, [searchParams])
+  }, [searchParams, location.hash])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

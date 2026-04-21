@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -18,6 +18,21 @@ const NuevaVentaPage = React.lazy(() => import('@/pages/NuevaVentaPage'))
 const ReportesPage = React.lazy(() => import('@/pages/ReportesPage'))
 const UsuariosPage = React.lazy(() => import('@/pages/UsuariosPage'))
 const AjustesPage = React.lazy(() => import('@/pages/AjustesPage'))
+
+function CatchAll() {
+  const location = useLocation()
+  // Si la URL tiene token de recovery en el hash (#access_token=...&type=recovery)
+  // o en el query (?code=...), redirigir a reset-password conservando los params
+  const hash = location.hash
+  const search = location.search
+  const isRecovery =
+    (hash.includes('type=recovery')) ||
+    (search.includes('code='))
+  if (isRecovery) {
+    return <Navigate to={`/reset-password${search}${hash}`} replace />
+  }
+  return <Navigate to="/dashboard" replace />
+}
 
 function PageLoader() {
   return (
@@ -81,7 +96,7 @@ export function Router() {
             <Route path="/ajustes" element={<AjustesPage />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<CatchAll />} />
         </Routes>
     </React.Suspense>
   )
