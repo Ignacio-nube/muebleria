@@ -97,10 +97,12 @@ export const authService = {
   },
 
   async resetPassword(email: string): Promise<void> {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-    if (error) throw new Error(error.message)
+    const redirectTo = `${window.location.origin}/reset-password`
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+    if (error) {
+      console.error('[resetPassword] error:', error.message, error.status)
+      throw new Error(error.message)
+    }
   },
 
   async updatePassword(newPassword: string): Promise<void> {
