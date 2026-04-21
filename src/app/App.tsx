@@ -1,3 +1,4 @@
+import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './providers/AuthProvider'
 import { QueryProvider } from './providers/QueryProvider'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -7,12 +8,14 @@ import { Router } from './Router'
 function App() {
   return (
     <QueryProvider>
-      <AuthProvider>
-        <TooltipProvider>
-          <Router />
-          <Toaster position="top-right" richColors />
-        </TooltipProvider>
-      </AuthProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <TooltipProvider>
+            <Router />
+            <Toaster position="top-right" richColors />
+          </TooltipProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </QueryProvider>
   )
 }

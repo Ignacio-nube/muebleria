@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
 import { authService } from '@/features/auth/services/authService'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -13,24 +12,6 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [isReady, setIsReady] = useState(false)
-
-  useEffect(() => {
-    // Supabase redirige con el token en el hash de la URL
-    // onAuthStateChange detecta el evento PASSWORD_RECOVERY automáticamente
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsReady(true)
-      }
-    })
-
-    // También verificar si ya hay sesión activa (por si el evento ya se disparó)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setIsReady(true)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -57,35 +38,6 @@ export default function ResetPasswordPage() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  if (!isReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-        <div className="w-full max-w-sm space-y-6">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <img src="/logo.svg" alt="Centro Hogar" className="size-16" />
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Centro Hogar</h1>
-              <p className="text-sm text-muted-foreground">Verificando link...</p>
-            </div>
-          </div>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-center text-muted-foreground">
-                Si este mensaje persiste, el link puede haber expirado.{' '}
-                <button
-                  onClick={() => navigate('/login')}
-                  className="underline underline-offset-2 hover:text-foreground transition-colors"
-                >
-                  Volver al inicio de sesión
-                </button>
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
   }
 
   return (

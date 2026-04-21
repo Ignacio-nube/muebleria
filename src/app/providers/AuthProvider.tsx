@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { authService } from '@/features/auth/services/authService'
 import type { Profile } from '@/types/app.types'
@@ -22,12 +23,14 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  // Evita que el listener de onAuthStateChange procese el evento inicial
-  // mientras getSession ya lo está manejando
   const initializedRef = useRef(false)
+  // Cuando estamos en flujo de recuperación de contraseña, no tratamos
+  // al usuario como autenticado aunque Supabase haya creado sesión temporal
+  const isRecoveryModeRef = useRef(false)
 
   const loadProfile = useCallback(async (userId: string): Promise<Profile | null> => {
     try {
@@ -45,44 +48,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, loadProfile])
 
   useEffect(() => {
-    // Suscribirse a cambios de auth ANTES de getSession
-    // para no perder eventos que ocurran durante la inicialización
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Ignorar el evento inicial SIGNED_IN que Supabase dispara al montar:
-      // lo maneja getSession() abajo para poder esperar loadProfile antes de
-      // poner isLoading=false y evitar el flash de pantalla en blanco
+      if (event === 'PASSWORD_RECOVERY') {
+        // Supabase establece una sesión temporal para que updateUser() funcione.
+        // No queremos que el usuario quede "logueado" — lo mandamos a resetear contraseña.
+        isRecoveryModeRef.current = true
+        setUser(null)
+        setProfile(null)
+        navigate('/reset-password', { replace: true })
+        if (!initializedRef.current) {
+          initializedRef.current = true
+          setIsLoading(false)
+        }
+        return
+      }
+
+      // Ignorar el evento inicial que Supabase dispara al montar;
+      // lo maneja getSession() abajo para esperar loadProfile antes de quitar el loader
       if (!initializedRef.current) return
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-        if (session?.user) {
+        // Si el usuario acaba de actualizar su contraseña, salir del modo recovery
+        if (event === 'USER_UPDATED') isRecoveryModeRef.current = false
+
+        if (session?.user && !isRecoveryModeRef.current) {
           setUser({ id: session.user.id, email: session.user.email ?? '' })
           await loadProfile(session.user.id)
         }
       } else if (event === 'SIGNED_OUT') {
+        isRecoveryModeRef.current = false
         setUser(null)
         setProfile(null)
-      } else if (event === 'PASSWORD_RECOVERY') {
-        // No hacer nada, la página ResetPasswordPage lo maneja
       }
     })
 
     // Inicialización: obtener sesión actual y cargar perfil ANTES de quitar el loader
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
+      if (session?.user && !isRecoveryModeRef.current) {
         setUser({ id: session.user.id, email: session.user.email ?? '' })
         await loadProfile(session.user.id)
       }
     }).catch(() => {
       // Sin sesión o error → quedamos como no autenticado
     }).finally(() => {
-      initializedRef.current = true
-      setIsLoading(false)
+      if (!initializedRef.current) {
+        initializedRef.current = true
+        setIsLoading(false)
+      }
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [loadProfile])
+  }, [loadProfile, navigate])
 
   const signIn = useCallback(async (email: string, password: string) => {
     const data = await authService.signIn(email, password)

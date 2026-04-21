@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -47,9 +47,8 @@ function RedirectIfAuth({ children }: { children: React.ReactNode }) {
 
 export function Router() {
   return (
-    <BrowserRouter>
-      <React.Suspense fallback={<PageLoader />}>
-        <Routes>
+    <React.Suspense fallback={<PageLoader />}>
+      <Routes>
           <Route
             path="/login"
             element={
@@ -84,7 +83,6 @@ export function Router() {
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-      </React.Suspense>
-    </BrowserRouter>
+    </React.Suspense>
   )
 }
