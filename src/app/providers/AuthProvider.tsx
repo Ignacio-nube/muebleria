@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { authService } from '@/features/auth/services/authService'
 import type { Profile } from '@/types/app.types'
@@ -24,13 +24,16 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const initializedRef = useRef(false)
-  // Cuando estamos en flujo de recuperación de contraseña, no tratamos
-  // al usuario como autenticado aunque Supabase haya creado sesión temporal
   const isRecoveryModeRef = useRef(false)
+
+  // Mantener referencia a location para usarla dentro del listener sin recrearlo
+  const locationRef = useRef(location)
+  useEffect(() => { locationRef.current = location }, [location])
 
   const loadProfile = useCallback(async (userId: string): Promise<Profile | null> => {
     try {
@@ -49,9 +52,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const onResetPage = locationRef.current.pathname === '/reset-password'
+
       if (event === 'PASSWORD_RECOVERY') {
-        // Supabase establece una sesión temporal para que updateUser() funcione.
-        // No queremos que el usuario quede "logueado" — lo mandamos a resetear contraseña.
+        // Flujo implicit/legacy: Supabase dispara PASSWORD_RECOVERY
         isRecoveryModeRef.current = true
         setUser(null)
         setProfile(null)
@@ -63,12 +67,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // Ignorar el evento inicial que Supabase dispara al montar;
-      // lo maneja getSession() abajo para esperar loadProfile antes de quitar el loader
+      if (event === 'SIGNED_IN' && onResetPage) {
+        // Flujo PKCE: el link de recovery manda a /reset-password?code=...
+        // Supabase procesa el code y dispara SIGNED_IN — pero estamos en la página
+        // de reset, así que no autenticar al usuario, solo marcar modo recovery.
+        isRecoveryModeRef.current = true
+        setUser(null)
+        setProfile(null)
+        if (!initializedRef.current) {
+          initializedRef.current = true
+          setIsLoading(false)
+        }
+        return
+      }
+
       if (!initializedRef.current) return
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-        // Si el usuario acaba de actualizar su contraseña, salir del modo recovery
         if (event === 'USER_UPDATED') isRecoveryModeRef.current = false
 
         if (session?.user && !isRecoveryModeRef.current) {
@@ -82,9 +97,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-    // Inicialización: obtener sesión actual y cargar perfil ANTES de quitar el loader
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user && !isRecoveryModeRef.current) {
+      const onResetPage = locationRef.current.pathname === '/reset-password'
+      if (session?.user && !isRecoveryModeRef.current && !onResetPage) {
         setUser({ id: session.user.id, email: session.user.email ?? '' })
         await loadProfile(session.user.id)
       }
