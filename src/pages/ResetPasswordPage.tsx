@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { authService } from '@/features/auth/services/authService'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,50 +10,38 @@ import { toast } from 'sonner'
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const location = useLocation()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [isReady, setIsReady] = useState(false)
+  // null = verificando, true = listo, false = link inválido/expirado
+  const [isReady, setIsReady] = useState<boolean | null>(null)
 
   useEffect(() => {
-    // Caso PKCE: llegamos con ?code= en la URL
-    const hasCode = searchParams.has('code')
-    // Caso implicit: llegamos con #access_token=...&type=recovery en el hash
-    const hasRecoveryHash = location.hash.includes('type=recovery')
-
-    if (hasCode || hasRecoveryHash) {
-      // Supabase procesa el token automáticamente, solo esperar la sesión
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          setIsReady(true)
-        }
-      })
-      // También escuchar por si la sesión llega un poco después
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-        if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
-          setIsReady(true)
-        }
-      })
-      return () => subscription.unsubscribe()
-    }
-
-    // Sin token en URL: puede que AuthProvider ya manejó el evento y estamos acá por navigate()
-    // Verificar sesión activa directamente
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setIsReady(true)
-      }
-    })
-
+    // Supabase detecta automáticamente el token en la URL (sea ?code= o #access_token=)
+    // y dispara onAuthStateChange. PASSWORD_RECOVERY o SIGNED_IN indican sesión activa.
+    // Suscribirse ANTES de cualquier otra cosa para no perder el evento.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      console.log('[ResetPasswordPage] auth event:', event)
       if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setIsReady(true)
       }
     })
+
+    // También verificar si la sesión ya fue procesada antes de montar
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('[ResetPasswordPage] getSession:', session?.user?.email ?? 'null')
+      if (session) {
+        setIsReady(true)
+      } else {
+        // Dar 3 segundos al evento antes de mostrar error
+        setTimeout(() => {
+          setIsReady((prev) => (prev === null ? false : prev))
+        }, 3000)
+      }
+    })
+
     return () => subscription.unsubscribe()
-  }, [searchParams, location.hash])
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -73,7 +61,8 @@ export default function ResetPasswordPage() {
         description: 'Ya podés ingresar con tu nueva contraseña.',
       })
       navigate('/login', { replace: true })
-    } catch {
+    } catch (err) {
+      console.error('[ResetPasswordPage] updatePassword error:', err)
       toast.error('No se pudo actualizar la contraseña', {
         description: 'El link puede haber expirado. Solicitá uno nuevo.',
       })
@@ -82,7 +71,8 @@ export default function ResetPasswordPage() {
     }
   }
 
-  if (!isReady) {
+  // Verificando...
+  if (isReady === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
         <div className="w-full max-w-sm space-y-6">
@@ -93,15 +83,31 @@ export default function ResetPasswordPage() {
               <p className="text-sm text-muted-foreground">Verificando link...</p>
             </div>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Link inválido o expirado
+  if (isReady === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
+        <div className="w-full max-w-sm space-y-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <img src="/logo.svg" alt="Centro Hogar" className="size-16" />
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Centro Hogar</h1>
+            </div>
+          </div>
           <Card>
             <CardContent className="pt-6">
               <p className="text-sm text-center text-muted-foreground">
-                Si este mensaje persiste, el link puede haber expirado.{' '}
+                El link expiró o ya fue usado.{' '}
                 <button
                   onClick={() => navigate('/login')}
                   className="underline underline-offset-2 hover:text-foreground transition-colors"
                 >
-                  Volver al inicio de sesión
+                  Solicitá uno nuevo
                 </button>
               </p>
             </CardContent>
@@ -111,6 +117,7 @@ export default function ResetPasswordPage() {
     )
   }
 
+  // Listo — mostrar formulario
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
       <div className="w-full max-w-sm space-y-6">
