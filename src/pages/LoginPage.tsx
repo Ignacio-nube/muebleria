@@ -6,11 +6,21 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
+type View = 'login' | 'forgot-password'
+
 export default function LoginPage() {
-  const { signIn } = useAuth()
+  const { signIn, resetPassword } = useAuth()
+  const [view, setView] = useState<View>('login')
+
+  // Login state
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+
+  // Forgot password state
+  const [resetEmail, setResetEmail] = useState('')
+  const [isResetting, setIsResetting] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -19,12 +29,29 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       await signIn(email, password)
-    } catch (err) {
+    } catch {
       toast.error('Credenciales incorrectas', {
         description: 'Verificá tu email y contraseña.',
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (!resetEmail) return
+
+    setIsResetting(true)
+    try {
+      await resetPassword(resetEmail)
+      setResetSent(true)
+    } catch {
+      toast.error('No se pudo enviar el email', {
+        description: 'Verificá que el email sea correcto e intentá de nuevo.',
+      })
+    } finally {
+      setIsResetting(false)
     }
   }
 
@@ -39,41 +66,111 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Iniciar sesión</CardTitle>
-            <CardDescription>Ingresá con tu cuenta del sistema</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="usuario@centrhogar.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoFocus
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full mt-2" disabled={isLoading}>
-                {isLoading ? 'Ingresando...' : 'Ingresar'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        {view === 'login' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Iniciar sesión</CardTitle>
+              <CardDescription>Ingresá con tu cuenta del sistema</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="usuario@centrohogar.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Contraseña</Label>
+                    <button
+                      type="button"
+                      onClick={() => setView('forgot-password')}
+                      className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </button>
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full mt-2" disabled={isLoading}>
+                  {isLoading ? 'Ingresando...' : 'Ingresar'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {view === 'forgot-password' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Recuperar contraseña</CardTitle>
+              <CardDescription>
+                {resetSent
+                  ? 'Revisá tu bandeja de entrada'
+                  : 'Ingresá tu email y te enviamos un link para restablecer tu contraseña'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {resetSent ? (
+                <div className="flex flex-col gap-4">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Enviamos un email a <span className="font-medium text-foreground">{resetEmail}</span> con las instrucciones para restablecer tu contraseña.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setView('login')
+                      setResetSent(false)
+                      setResetEmail('')
+                    }}
+                  >
+                    Volver al inicio de sesión
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="reset-email">Email</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="usuario@centrohogar.com"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <Button type="submit" className="w-full mt-2" disabled={isResetting}>
+                    {isResetting ? 'Enviando...' : 'Enviar link de recuperación'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => setView('login')}
+                  >
+                    Volver al inicio de sesión
+                  </Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

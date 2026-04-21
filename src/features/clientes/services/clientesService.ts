@@ -1,4 +1,4 @@
-import { insforge } from '@/lib/insforge'
+import { supabase } from '@/lib/supabase'
 import type { Cliente, Venta } from '@/types/app.types'
 import type { ClienteFormValues } from '@/lib/validations/cliente.schema'
 
@@ -13,7 +13,7 @@ export const clientesService = {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
-    let query = insforge.database
+    let query = supabase
       .from('clientes')
       .select('*', { count: 'exact' })
       .range(from, to)
@@ -32,7 +32,7 @@ export const clientesService = {
   },
 
   async getById(id: string): Promise<Cliente> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('clientes')
       .select('*')
       .eq('id', id)
@@ -43,7 +43,7 @@ export const clientesService = {
   },
 
   async create(values: ClienteFormValues): Promise<Cliente> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('clientes')
       .insert([values])
       .select()
@@ -54,7 +54,7 @@ export const clientesService = {
   },
 
   async update(id: string, values: Partial<ClienteFormValues>): Promise<Cliente> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('clientes')
       .update(values)
       .eq('id', id)
@@ -66,7 +66,7 @@ export const clientesService = {
   },
 
   async toggleActivo(id: string, activo: boolean): Promise<Cliente> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('clientes')
       .update({ activo })
       .eq('id', id)
@@ -78,12 +78,12 @@ export const clientesService = {
   },
 
   async delete(id: string): Promise<void> {
-    const { error } = await insforge.database.from('clientes').delete().eq('id', id)
+    const { error } = await supabase.from('clientes').delete().eq('id', id)
     if (error) throw new Error(error.message)
   },
 
   async search(query: string): Promise<Cliente[]> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('clientes')
       .select('*')
       .or(`nombre.ilike.%${query}%,apellido.ilike.%${query}%,dni.ilike.%${query}%`)
@@ -96,7 +96,7 @@ export const clientesService = {
   },
 
   async getHistorial(clienteId: string): Promise<Venta[]> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('ventas')
       .select('*, vendedor:profiles(id, nombre, apellido)')
       .eq('cliente_id', clienteId)

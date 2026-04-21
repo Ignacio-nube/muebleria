@@ -1,4 +1,4 @@
-import { insforge } from '@/lib/insforge'
+import { supabase } from '@/lib/supabase'
 import type { Venta, VentaItem, CartItem } from '@/types/app.types'
 import type { VentaFormValues } from '@/lib/validations/venta.schema'
 import { calcularTotalConInteres } from '@/lib/utils'
@@ -22,7 +22,7 @@ export const ventasService = {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
-    let query = insforge.database
+    let query = supabase
       .from('ventas')
       .select('*, cliente:clientes(id, nombre, apellido), vendedor:profiles(id, nombre, apellido)', {
         count: 'exact',
@@ -42,7 +42,7 @@ export const ventasService = {
   },
 
   async getById(id: string): Promise<Venta> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('ventas')
       .select(`
         *,
@@ -82,7 +82,7 @@ export const ventasService = {
       notas: formValues.notas ?? null,
     }
 
-    const { data: venta, error: ventaError } = await insforge.database
+    const { data: venta, error: ventaError } = await supabase
       .from('ventas')
       .insert([ventaPayload])
       .select()
@@ -99,7 +99,7 @@ export const ventasService = {
       subtotal: item.subtotal,
     }))
 
-    const { error: itemsError } = await insforge.database
+    const { error: itemsError } = await supabase
       .from('venta_items')
       .insert(itemsPayload)
 
@@ -108,7 +108,7 @@ export const ventasService = {
     // Actualizar stock de cada producto
     for (const item of items) {
       const nuevoStock = Math.max(0, item.producto.stock_actual - item.cantidad)
-      const { error: stockError } = await insforge.database
+      const { error: stockError } = await supabase
         .from('productos')
         .update({ stock_actual: nuevoStock })
         .eq('id', item.producto.id)
@@ -118,7 +118,7 @@ export const ventasService = {
       }
 
       // Registrar movimiento de stock
-      await insforge.database.from('movimientos_stock').insert([{
+      await supabase.from('movimientos_stock').insert([{
         producto_id: item.producto.id,
         usuario_id: vendedor_id,
         tipo: 'salida',
@@ -131,7 +131,7 @@ export const ventasService = {
   },
 
   async cancelar(id: string): Promise<void> {
-    const { error } = await insforge.database
+    const { error } = await supabase
       .from('ventas')
       .update({ estado: 'cancelada' })
       .eq('id', id)
@@ -147,7 +147,7 @@ export const ventasService = {
     const hoy = new Date()
     hoy.setHours(0, 0, 0, 0)
 
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('ventas')
       .select('total_final')
       .eq('estado', 'completada')
@@ -167,7 +167,7 @@ export const ventasService = {
     const desde = new Date()
     desde.setDate(desde.getDate() - dias)
 
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('ventas')
       .select('created_at, total_final')
       .eq('estado', 'completada')
@@ -189,7 +189,7 @@ export const ventasService = {
   },
 
   async getItemsFromVenta(ventaId: string): Promise<VentaItem[]> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('venta_items')
       .select('*, producto:productos(id, codigo, nombre, precio_venta)')
       .eq('venta_id', ventaId)

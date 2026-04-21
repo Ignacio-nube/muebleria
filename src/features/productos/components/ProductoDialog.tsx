@@ -130,22 +130,28 @@ export function ProductoDialog({ open, onOpenChange, producto, onSuccess }: Prod
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="precio_costo">Precio costo *</Label>
-              <Input id="precio_costo" type="number" step="0.01" min="0" {...form.register('precio_costo')} />
+              <Input id="precio_costo" type="number" step="0.01" min="0" {...form.register('precio_costo', { valueAsNumber: true })} />
+              {form.formState.errors.precio_costo && (
+                <p className="text-xs text-destructive">{form.formState.errors.precio_costo.message}</p>
+              )}
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="precio_venta">Precio venta *</Label>
-              <Input id="precio_venta" type="number" step="0.01" min="0" {...form.register('precio_venta')} />
+              <Input id="precio_venta" type="number" step="0.01" min="0" {...form.register('precio_venta', { valueAsNumber: true })} />
+              {form.formState.errors.precio_venta && (
+                <p className="text-xs text-destructive">{form.formState.errors.precio_venta.message}</p>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="stock_actual">Stock actual</Label>
-              <Input id="stock_actual" type="number" min="0" {...form.register('stock_actual')} />
+              <Input id="stock_actual" type="number" min="0" {...form.register('stock_actual', { valueAsNumber: true })} />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="stock_minimo">Stock mínimo</Label>
-              <Input id="stock_minimo" type="number" min="0" {...form.register('stock_minimo')} />
+              <Input id="stock_minimo" type="number" min="0" {...form.register('stock_minimo', { valueAsNumber: true })} />
             </div>
           </div>
 

@@ -8,7 +8,7 @@ export const productoSchema = z.object({
   precio_venta: z.coerce.number().min(0, 'El precio debe ser positivo'),
   stock_actual: z.coerce.number().int().min(0),
   stock_minimo: z.coerce.number().int().min(0),
-  categoria_id: z.string().uuid().optional().nullable(),
+  categoria_id: z.string().optional().nullable(),
   imagen_url: z.string().url().optional().nullable(),
   activo: z.boolean().default(true),
 })

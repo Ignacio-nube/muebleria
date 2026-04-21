@@ -1,4 +1,4 @@
-import { insforge } from '@/lib/insforge'
+import { supabase } from '@/lib/supabase'
 import type { Producto, Categoria } from '@/types/app.types'
 import type { ProductoFormValues } from '@/lib/validations/producto.schema'
 
@@ -17,7 +17,7 @@ export const productosService = {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
-    let query = insforge.database
+    let query = supabase
       .from('productos')
       .select('*, categoria:categorias(id, nombre)', { count: 'exact' })
       .range(from, to)
@@ -41,7 +41,7 @@ export const productosService = {
   },
 
   async getById(id: string): Promise<Producto> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('productos')
       .select('*, categoria:categorias(id, nombre)')
       .eq('id', id)
@@ -52,7 +52,7 @@ export const productosService = {
   },
 
   async create(values: ProductoFormValues): Promise<Producto> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('productos')
       .insert([values])
       .select()
@@ -63,7 +63,7 @@ export const productosService = {
   },
 
   async update(id: string, values: Partial<ProductoFormValues>): Promise<Producto> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('productos')
       .update(values)
       .eq('id', id)
@@ -75,7 +75,7 @@ export const productosService = {
   },
 
   async toggleActivo(id: string, activo: boolean): Promise<Producto> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('productos')
       .update({ activo })
       .eq('id', id)
@@ -87,7 +87,7 @@ export const productosService = {
   },
 
   async delete(id: string): Promise<void> {
-    const { error } = await insforge.database.from('productos').delete().eq('id', id)
+    const { error } = await supabase.from('productos').delete().eq('id', id)
     if (error) throw new Error(error.message)
   },
 
@@ -98,7 +98,7 @@ export const productosService = {
     tipo: 'entrada' | 'salida' | 'ajuste',
     motivo?: string
   ): Promise<void> {
-    const { data: producto, error: fetchError } = await insforge.database
+    const { data: producto, error: fetchError } = await supabase
       .from('productos')
       .select('stock_actual')
       .eq('id', productoId)
@@ -108,14 +108,14 @@ export const productosService = {
 
     const nuevoStock = (producto as { stock_actual: number }).stock_actual + delta
 
-    const { error: updateError } = await insforge.database
+    const { error: updateError } = await supabase
       .from('productos')
       .update({ stock_actual: nuevoStock })
       .eq('id', productoId)
 
     if (updateError) throw new Error(updateError.message)
 
-    const { error: movError } = await insforge.database
+    const { error: movError } = await supabase
       .from('movimientos_stock')
       .insert([{
         producto_id: productoId,
@@ -129,7 +129,7 @@ export const productosService = {
   },
 
   async listCategorias(): Promise<Categoria[]> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('categorias')
       .select('*')
       .order('nombre', { ascending: true })
@@ -139,7 +139,7 @@ export const productosService = {
   },
 
   async getBajoStock(): Promise<Producto[]> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('productos')
       .select('*, categoria:categorias(id, nombre)')
       .eq('activo', true)
@@ -150,7 +150,7 @@ export const productosService = {
   },
 
   async createCategoria(nombre: string, descripcion?: string): Promise<Categoria> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('categorias')
       .insert([{ nombre, descripcion: descripcion ?? null }])
       .select()
@@ -161,7 +161,7 @@ export const productosService = {
   },
 
   async updateCategoria(id: string, values: { nombre: string; descripcion?: string }): Promise<Categoria> {
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('categorias')
       .update({ nombre: values.nombre, descripcion: values.descripcion ?? null })
       .eq('id', id)
@@ -173,7 +173,7 @@ export const productosService = {
   },
 
   async deleteCategoria(id: string): Promise<void> {
-    const { error } = await insforge.database
+    const { error } = await supabase
       .from('categorias')
       .delete()
       .eq('id', id)

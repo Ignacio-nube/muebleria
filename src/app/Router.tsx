@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 // Pages (lazy loaded)
 const LoginPage = React.lazy(() => import('@/pages/LoginPage'))
+const ResetPasswordPage = React.lazy(() => import('@/pages/ResetPasswordPage'))
 const DashboardPage = React.lazy(() => import('@/pages/DashboardPage'))
 const ClientesPage = React.lazy(() => import('@/pages/ClientesPage'))
 const ClienteDetailPage = React.lazy(() => import('@/pages/ClienteDetailPage'))
@@ -57,6 +58,8 @@ export function Router() {
               </RedirectIfAuth>
             }
           />
+
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           <Route
             element={
