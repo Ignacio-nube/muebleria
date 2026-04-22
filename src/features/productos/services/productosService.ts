@@ -21,6 +21,7 @@ export const productosService = {
       .from('productos')
       .select('*, categoria:categorias(id, nombre)', { count: 'exact' })
       .range(from, to)
+      .order('activo', { ascending: false })
       .order('nombre', { ascending: true })
 
     // soloActivo (explicit tri-state) takes priority over soloActivos

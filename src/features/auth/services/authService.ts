@@ -74,10 +74,12 @@ export const authService = {
     const emailMap = new Map(
       ((emailsResult.data ?? []) as { id: string; email: string }[]).map((e) => [e.id, e.email])
     )
-    return ((profilesResult.data ?? []) as Profile[]).map((p) => ({
-      ...p,
-      email: emailMap.get(p.id) ?? '',
-    }))
+    return ((profilesResult.data ?? []) as Profile[])
+      .map((p) => ({ ...p, email: emailMap.get(p.id) ?? '' }))
+      .sort((a, b) => {
+        if (a.activo === b.activo) return 0
+        return a.activo ? -1 : 1
+      })
   },
 
   async changePassword(userId: string, newPassword: string): Promise<void> {

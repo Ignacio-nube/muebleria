@@ -17,6 +17,7 @@ export const clientesService = {
       .from('clientes')
       .select('*', { count: 'exact' })
       .range(from, to)
+      .order('activo', { ascending: false })
       .order('apellido', { ascending: true })
 
     if (activo !== undefined) query = query.eq('activo', activo)
